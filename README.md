@@ -148,6 +148,6 @@ this produces a bundled file at dist/index.js that’s fully conductor-compatibl
 ## load your evaluator into sourceacademy playground 
 run yarn build. if there are no problems, a file dist/index.js will be generated. this is the file that will be used to run your implementation of the language.
 
-this repository has been configured to automatically build your runner and deploy it to github pages upon pushing to the main branch on github. you should be able to find it at https://{your-username}.github.io/{your-repository}/index.js.
+this repository has been configured to automatically build your runner and deploy it to github pages upon pushing to the main branch on github. you should be able to find it at `https://limcaaarl.github.io/test_antlr_conductor/index.js`
 
 enjoy!
