@@ -1,5 +1,5 @@
-import { BasicEvaluator } from "conductor/dist/conductor/runner";
-import { IRunnerPlugin } from "conductor/dist/conductor/runner/types";
+import { BasicEvaluator } from "conductor/src/conductor/runner";
+import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
 import { SimpleLangLexer } from './parser/src/SimpleLangLexer';
 import { ExpressionContext, ProgContext, SimpleLangParser } from './parser/src/SimpleLangParser';
