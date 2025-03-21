@@ -27,7 +27,7 @@ class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implem
                 const right = this.visit(ctx.getChild(2) as ExpressionContext);
 
                 switch (op) {
-                    case '+': return left - right;
+                    case '+': return left + right;
                     case '-': return left - right;
                     case '*': return left * right;
                     case '/':
