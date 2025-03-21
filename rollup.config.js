@@ -6,7 +6,7 @@ export default {
     plugins: [nodeResolve(), typescript()],
     input: "src/index.ts",
     output: {
-        plugins: [],
+        plugins: [terser({ compress: { negate_iife: false } })],
         dir: "dist",
         format: "iife",
         sourcemap: true,
