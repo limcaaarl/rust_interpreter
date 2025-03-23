@@ -8,11 +8,13 @@ import { SimpleLangVisitor } from './parser/src/SimpleLangVisitor';
 class SimpleLangEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements SimpleLangVisitor<number> {
     // Visit a parse tree produced by SimpleLangParser#prog
     visitProg(ctx: ProgContext): number {
+        console.log('visitProg context:', ctx)
         return this.visit(ctx.expression());
     }
 
     // Visit a parse tree produced by SimpleLangParser#expression
     visitExpression(ctx: ExpressionContext): number {
+        console.log('visitExpression context:', ctx)
         if (ctx.getChildCount() === 1) {
             // INT case
             return parseInt(ctx.getText());
