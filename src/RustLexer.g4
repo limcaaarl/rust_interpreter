@@ -23,6 +23,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 lexer grammar RustLexer;
 
 // Insert here @header for C++ lexer.
+@header {
+import RustLexerBase from "./RustLexerBase";
+}
 
 options
 {

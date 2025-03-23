@@ -4,6 +4,9 @@ import * as antlr from "antlr4ng";
 import { Token } from "antlr4ng";
 
 
+import RustLexerBase from "./RustLexerBase";
+
+
 export class RustLexer extends RustLexerBase {
     public static readonly KW_AS = 1;
     public static readonly KW_BREAK = 2;

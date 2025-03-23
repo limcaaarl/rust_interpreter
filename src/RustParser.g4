@@ -22,6 +22,9 @@ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 parser grammar RustParser;
 
 // Insert here @header for C++ parser.
+@header {
+import RustParserBase from "./RustParserBase";
+}
 
 options
 {

@@ -3,6 +3,9 @@
 import { AbstractParseTreeVisitor } from "antlr4ng";
 
 
+import RustParserBase from "./RustParserBase";
+
+
 import { CrateContext } from "./RustParser.js";
 import { MacroInvocationContext } from "./RustParser.js";
 import { DelimTokenTreeContext } from "./RustParser.js";

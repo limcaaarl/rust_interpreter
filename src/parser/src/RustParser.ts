@@ -11,6 +11,9 @@ import { RustParserVisitor } from "./RustParserVisitor.js";
 type int = number;
 
 
+import RustParserBase from "./RustParserBase";
+
+
 export class RustParser extends RustParserBase {
     public static readonly KW_AS = 1;
     public static readonly KW_BREAK = 2;
