@@ -126,6 +126,9 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Send the result to the REPL
             this.conductor.sendOutput(`Result of expression: ${result}`);
+            
+            // Resolve promise
+            return Promise.resolve();
         } catch (error) {
             // Handle errors and send them to the REPL
             if (error instanceof Error) {
@@ -133,6 +136,9 @@ export class RustEvaluator extends BasicEvaluator {
             } else {
                 this.conductor.sendOutput(`Error: ${String(error)}`);
             }
+            
+            // Reject promise
+            return Promise.reject(error);
         }
     }
 }
