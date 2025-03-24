@@ -8,7 +8,6 @@ import { RustLexer } from "./parser/src/RustLexer";
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements RustParserVisitor<any> {
     // Visit the root crate node
     visitCrate(ctx: CrateContext): any {
-        console.log('visitCrate context: ', ctx);
         // Find and execute the main function
         for (const item of ctx.item()) {
             if (item.visItem()?.function_()?.identifier().NON_KEYWORD_IDENTIFIER().getText() === 'main') {
@@ -20,21 +19,18 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     // Visit a function node
     visitFunction_(ctx: Function_Context): any {
-        console.log('visitFunction_ context: ', ctx);
         // Execute the function body
         return this.visitBlockExpression(ctx.blockExpression());
     }
 
     // Visit a block expression
     visitBlockExpression(ctx: BlockExpressionContext): any {
-        console.log('visitBlockExpression context: ', ctx);
         // Execute statements in the block
         return this.visitStatements(ctx.statements());
     }
 
     // Visit statements
     visitStatements(ctx: StatementsContext): any {
-        console.log('visitStatements context: ', ctx);
         let result = null;
         for (const stmt of ctx.statement()) {
             result = this.visitStatement(stmt);
@@ -44,7 +40,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     // Visit a statement
     visitStatement(ctx: StatementContext): any {
-        console.log('visitStatement context: ', ctx);
         if (ctx.letStatement()) {
             return this.visitLetStatement(ctx.letStatement());
         }
@@ -55,22 +50,19 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     }
 
     visitExpressionStatement(ctx: ExpressionStatementContext): any {
-        console.log('visitExpressionStatement context: ', ctx);
         return this.visitExpression(ctx.expression());
     }
 
     // Visit a let statement
     visitLetStatement(ctx: LetStatementContext): any {
-        console.log('visitLetStatement context: ', ctx);
         const varName = ctx.patternNoTopAlt().patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText();
         const value = this.visitExpression(ctx.expression());
-        console.log(`let ${varName} = ${value}`);
+        console.log(`TODO: actually store ${varName} = ${value}`);
         return value;
     }
 
     // Visit an expression
     visitExpression(ctx: any): any {
-        console.log('visitExpression context: ', ctx);
         if (ctx.literalExpression()) {
             return this.visitLiteralExpression(ctx.literalExpression());
         }
@@ -80,7 +72,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     // Visit a literal expression
     visitLiteralExpression(ctx: LiteralExpressionContext): any {
-        console.log('visitLiteralExpression context: ', ctx);
         if (ctx.INTEGER_LITERAL()) {
             return parseInt(ctx.INTEGER_LITERAL().getText(), 10);
         }
