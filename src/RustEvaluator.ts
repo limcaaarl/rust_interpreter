@@ -1,14 +1,26 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { CrateContext, RustParser } from './parser/src/RustParser';
+import { CrateContext, InnerAttributeContext, ItemContext, RustParser } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustParserVisitor<number> {
     // Visit a parse tree produced by RustParser
     visitCrate(ctx: CrateContext): number {
-        console.log('visitCrate context:', JSON.stringify(ctx))
+        console.log('visitCrate context:', ctx)
+        ctx.innerAttribute().forEach(attr => this.visit(attr));
+        ctx.item().forEach(item => this.visit(item));
+        return 0;
+    }
+
+    visitInnerAttribute(ctx: InnerAttributeContext): number {
+        console.log('visitInnerAttribute context:', ctx)
+        return 0;
+    }
+
+    visitItem(ctx: ItemContext): number {
+        console.log('visitItem context:', ctx)
         return 0;
     }
 
