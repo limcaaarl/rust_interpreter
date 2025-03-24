@@ -9,18 +9,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements R
     // Visit a parse tree produced by RustParser
     visitCrate(ctx: CrateContext): number {
         console.log('visitCrate context:', ctx)
-        ctx.innerAttribute().forEach(attr => this.visit(attr));
-        ctx.item().forEach(item => this.visit(item));
-        return 0;
-    }
-
-    visitInnerAttribute(ctx: InnerAttributeContext): number {
-        console.log('visitInnerAttribute context:', ctx)
-        return 0;
-    }
-
-    visitItem(ctx: ItemContext): number {
-        console.log('visitItem context:', ctx)
         return 0;
     }
 
