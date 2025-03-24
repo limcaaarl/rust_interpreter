@@ -8,7 +8,7 @@ import { RustLexer } from "./parser/src/RustLexer";
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<number> implements RustParserVisitor<number> {
     // Visit a parse tree produced by RustParser
     visitCrate(ctx: CrateContext): number {
-        console.log('visitCrate context:', ctx)
+        console.log('visitCrate context:', JSON.stringify(ctx))
         return 0;
     }
 
