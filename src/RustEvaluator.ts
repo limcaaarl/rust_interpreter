@@ -1,11 +1,13 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { BlockExpressionContext, CrateContext, ExpressionStatementContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { BlockExpressionContext, CrateContext, ExpressionStatementContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements RustParserVisitor<any> {
+    private scope: Map<string, any> = new Map();
+
     // Visit the root crate node
     visitCrate(ctx: CrateContext): any {
         // Find and execute the main function
@@ -57,7 +59,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitLetStatement(ctx: LetStatementContext): any {
         const varName = ctx.patternNoTopAlt().patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText();
         const value = this.visitExpression(ctx.expression());
-        console.log(`TODO: actually store ${varName} = ${value}`);
+        this.scope.set(varName, value);
         return value;
     }
 
@@ -65,6 +67,12 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitExpression(ctx: any): any {
         if (ctx.literalExpression()) {
             return this.visitLiteralExpression(ctx.literalExpression());
+        } else if (ctx.pathExpression()) {
+            const path = ctx.pathExpression().path().identifier().getText();
+            if (this.scope.has(path)) {
+                return this.scope.get(path);
+            }
+            throw new Error(`Variable '${path}' not found`);
         }
         // Add handling for other expression types as needed
         return null;
@@ -126,7 +134,6 @@ export class RustEvaluator extends BasicEvaluator {
             } else {
                 this.conductor.sendOutput(`Error: ${String(error)}`);
             }
-            throw error;
         }
     }
 }
