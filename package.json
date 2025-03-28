@@ -8,6 +8,7 @@
   "scripts": {
     "build": "rollup -c rollup.config.index.js",
     "build-local": "rollup -c rollup.config.local.js",
+    "watch-local": "rollup -c rollup.config.local.js -w",
     "run-local": "node dist/local.js",
     "generate-parser": "antlr4ng -Dlanguage=TypeScript -visitor -o src/parser/src src/RustParser.g4 src/RustLexer.g4"
   },

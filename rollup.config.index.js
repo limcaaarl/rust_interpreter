@@ -12,5 +12,10 @@ export default {
         dir: "dist",
         format: "iife",
         sourcemap: true,
+    },
+    watch: {
+        include: "src/**",
+        exclude: 'node_modules/**',
+        clearScreen: true,
     }
 }
