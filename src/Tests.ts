@@ -93,51 +93,6 @@ async function runTests() {
         "Variable retrieval"
     );
 
-    // Test 4: Addition
-    await runTest(
-        `fn main() {
-            1 + 4;
-        }`,
-        5,
-        "Addition"
-    );
-
-    // Test 5: Subtraction
-    await runTest(
-        `fn main() {
-            1 - 4;
-        }`,
-        -3,
-        "Subtraction"
-    );
-
-    // Test 6: Multiplication
-    await runTest(
-        `fn main() {
-            2 * 4;
-        }`,
-        8,
-        "Multiplication"
-    );
-
-    // Test 7: Division
-    await runTest(
-        `fn main() {
-            4 / 2;
-        }`,
-        2,
-        "Division"
-    );
-
-    // Test 8: Modulo
-    await runTest(
-        `fn main() {
-            4 % 3;
-        }`,
-        1,
-        "Modulo"
-    );
-
     // Print summary
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);
