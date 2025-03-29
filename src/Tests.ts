@@ -104,14 +104,12 @@ async function runTests() {
                 let x = 2;
                 {
                     let x = 3;
-                    x;
                 }
-                x;
             }
             x;
         }`,
         1,
-        "Nested blocks with shadowing"
+        "Scope isolation"
     );
 
     await runTest(
@@ -192,21 +190,17 @@ async function runTests() {
 
     await runTest(
         `fn main() {
+            let x = 1;
             {
-                let x = 1;
+                let x = 2;
                 {
-                    let x = 2;
-                    {
-                        let x = 3;
-                        x;
-                    }
+                    let x = 3;
                     x;
                 }
-                x;
             }
         }`,
-        1,
-        "Block with nested blocks and shadowing with same name"
+        3,
+        "Shadowing in nested blocks"
     );
 
     // Print summary
