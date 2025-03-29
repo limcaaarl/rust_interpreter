@@ -1,7 +1,7 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { BlockExpressionContext, CrateContext, ExpressionStatementContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { AssignmentExpressionContext, BlockExpressionContext, CrateContext, ExpressionStatementContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 
@@ -69,6 +69,8 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitLiteralExpression(ctx.literalExpression());
         } else if (ctx.pathExpression) {
             return this.visitPathExpression(ctx.pathExpression());
+        } else if (ctx instanceof AssignmentExpressionContext) {
+            return this.visitAssignmentExpression(ctx);
         }
         // Add handling for other expression types as needed
         return null;
@@ -81,6 +83,31 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.scope.get(varName);
         }
         throw new Error(`Variable '${varName}' not found`);
+    }
+
+    visitAssignmentExpression(ctx: AssignmentExpressionContext): any {
+        // Get the left-hand side expression
+        const lhsCtx = ctx.expression(0);
+        
+        // Extract the variable name from the path expression
+        let varName: string;
+        if (lhsCtx instanceof PathExpression_Context) {
+            const pathCtx = lhsCtx.pathExpression();
+            if (pathCtx) {
+                varName = pathCtx.pathInExpression().pathExprSegment()[0].pathIdentSegment().identifier().getText();
+            }
+        }
+        
+        if (!varName) {
+            throw new Error('Invalid assignment: LHS must be a variable name');
+        }
+        
+        // Evaluate the right-hand side
+        const rhs = this.visitExpression(ctx.expression(1));
+        
+        // Update the value in scope
+        this.scope.set(varName, rhs);
+        return rhs;
     }
 
     // Visit a literal expression
