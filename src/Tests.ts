@@ -25,7 +25,7 @@ const { runnerPlugin, conduit } = initialise(RustEvaluator, customLink);
  * @param expected - The expected result
  * @param testName - Optional name for the test
  */
-async function testRust(code: string, expected: any, testName?: string) {
+async function testRust(code: string, expected: any, testName?: string, expectError: boolean = false) {
     const evaluator = new RustEvaluator(runnerPlugin);
 
     try {
@@ -41,9 +41,16 @@ async function testRust(code: string, expected: any, testName?: string) {
             return false;
         }
     } catch (error) {
+        if (expectError) {
+            if (error.toString().includes(expected)) {
+                console.log(`✅ Test: ${testName || 'passed'}`);
+                return true;
+            }
+        }
         console.error(`❌ Test ${testName || 'failed'} - Error occurred:`);
         console.error(`Code:\n${code}\n`);
-        console.error(`Error: ${error}`);
+        console.error(`Expected: ${expected}`);
+        console.error(`Actual: ${error}`);
         return false;
     }
 }
@@ -53,8 +60,8 @@ async function runTests() {
     let testsFailed = 0;
 
     // Helper function to run a test and update counters
-    const runTest = async (code: string, expected: any, testName: string) => {
-        const result = await testRust(code, expected, testName);
+    const runTest = async (code: string, expected: any, testName: string, expectError: boolean = false) => {
+        const result = await testRust(code, expected, testName, expectError);
         if (result) {
             testsPassed++;
         } else {
@@ -91,6 +98,163 @@ async function runTests() {
         }`,
         3,
         "Variable retrieval"
+    );
+
+    // Test 4: Nested blocks with shadowing
+    await runTest(
+        `fn main() {
+            let x = 1;
+            {
+                let x = 2;
+                {
+                    let x = 3;
+                    x;
+                }
+                x;
+            }
+            x;
+        }`,
+        1,
+        "Nested blocks with shadowing"
+    );
+
+    // Test 5: Block scope isolation
+    await runTest(
+        `fn main() {
+            {
+                let x = 10;
+            }
+            x;
+        }`,
+        "Error: Variable 'x' not found",
+        "Block scope isolation",
+        true
+    );
+
+    // Test 9: Block with variable reassignment
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                x = 2;
+                x;
+            }
+        }`,
+        2,
+        "Block with variable reassignment"
+    );
+
+    // Test 10: Block with empty statement
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                ;
+                x;
+            }
+        }`,
+        1,
+        "Block with empty statement"
+    );
+
+    // Test 12: Block with variable declaration after use
+    await runTest(
+        `fn main() {
+            {
+                x;
+                let x = 1;
+            }
+        }`,
+        "Variable 'x' not found",
+        "Block with variable declaration after use",
+        true
+    );
+
+    // Test 15: Block with variable reassignment in nested block
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                {
+                    x = 2;
+                    x;
+                }
+                x;
+            }
+        }`,
+        2,
+        "Block with variable reassignment in nested block"
+    );
+
+    // Test 16: Block with empty block
+    await runTest(
+        `fn main() {
+            {
+                {}
+                let x = 1;
+                x;
+            }
+        }`,
+        1,
+        "Block with empty block"
+    );
+
+    // Test 17: Block with nested blocks and variable access
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                {
+                    let y = 2;
+                    {
+                        x;
+                        y;
+                    }
+                }
+            }
+        }`,
+        2,
+        "Block with nested blocks and variable access"
+    );
+
+    // Test 18: Block with nested blocks and shadowing with same name
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                {
+                    let x = 2;
+                    {
+                        let x = 3;
+                        x;
+                    }
+                    x;
+                }
+                x;
+            }
+        }`,
+        1,
+        "Block with nested blocks and shadowing with same name"
+    );
+
+    // Test 20: Block with nested blocks and variable reassignment from outer scope
+    await runTest(
+        `fn main() {
+            {
+                let x = 1;
+                {
+                    x = 2;
+                    {
+                        x = 3;
+                        x;
+                    }
+                    x;
+                }
+                x;
+            }
+        }`,
+        3,
+        "Block with nested blocks and variable reassignment from outer scope"
     );
 
     // Print summary
