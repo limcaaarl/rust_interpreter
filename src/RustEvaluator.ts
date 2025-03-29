@@ -1,12 +1,27 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { AssignmentExpressionContext, BlockExpressionContext, CrateContext, ExpressionStatementContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { AssignmentExpressionContext, BlockExpressionContext, CrateContext, ExpressionContext, ExpressionStatementContext, ExpressionWithBlock_Context, ExpressionWithBlockContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements RustParserVisitor<any> {
-    private scope: Map<string, any> = new Map();
+    private environmentStack: Map<string, any>[] = [new Map()];
+
+    // Get the current environment
+    private getCurrentEnvironment(): Map<string, any> {
+        return this.environmentStack[this.environmentStack.length - 1];
+    }
+
+    // Enter a new environment
+    private enterEnvironment(): void {
+        this.environmentStack.push(new Map());
+    }
+
+    // Exit the current environment
+    private exitEnvironment(): void {
+        this.environmentStack.pop();
+    }
 
     // Visit the root crate node
     visitCrate(ctx: CrateContext): any {
@@ -21,14 +36,36 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     // Visit a function node
     visitFunction_(ctx: Function_Context): any {
-        // Execute the function body
-        return this.visitBlockExpression(ctx.blockExpression());
+        // Enter a new environment for this function
+        this.enterEnvironment();
+
+        try {
+            // Execute the function body
+            const result = this.visitBlockExpression(ctx.blockExpression());
+            return result;
+        } finally {
+            // Always exit the environment, even if there's an error
+            this.exitEnvironment();
+        }
     }
 
     // Visit a block expression
     visitBlockExpression(ctx: BlockExpressionContext): any {
-        // Execute statements in the block
-        return this.visitStatements(ctx.statements());
+        if (ctx.statements() === null) {
+            // Empty block, just return null
+            return null;
+        }
+        // Enter a new environment for this block
+        this.enterEnvironment();
+
+        try {
+            // Execute statements in the block
+            const result = this.visitStatements(ctx.statements());
+            return result;
+        } finally {
+            // Always exit the environment, even if there's an error
+            this.exitEnvironment();
+        }
     }
 
     // Visit statements
@@ -52,14 +89,26 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     }
 
     visitExpressionStatement(ctx: ExpressionStatementContext): any {
-        return this.visitExpression(ctx.expression());
+        if (ctx.expression()) {
+            return this.visitExpression(ctx.expression());
+        } else if (ctx.expressionWithBlock()) {
+            return this.visitExpressionWithBlock(ctx.expressionWithBlock());
+        }
+        return null;
+    }
+
+    visitExpressionWithBlock(ctx: ExpressionWithBlockContext): any {
+        if (ctx.blockExpression()) {
+            return this.visitBlockExpression(ctx.blockExpression());
+        }
+        return null;
     }
 
     // Visit a let statement
     visitLetStatement(ctx: LetStatementContext): any {
         const varName = ctx.patternNoTopAlt().patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText();
         const value = this.visitExpression(ctx.expression());
-        this.scope.set(varName, value);
+        this.getCurrentEnvironment().set(varName, value);
         return value;
     }
 
@@ -79,34 +128,45 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitPathExpression(ctx: PathExpressionContext): any {
         const varName = ctx.pathInExpression().pathExprSegment()[0].pathIdentSegment().identifier().NON_KEYWORD_IDENTIFIER().getText();
 
-        if (this.scope.has(varName)) {
-            return this.scope.get(varName);
+        // Search through the environment stack from innermost to outermost
+        for (let i = this.environmentStack.length - 1; i >= 0; i--) {
+            const environment = this.environmentStack[i];
+            if (environment.has(varName)) {
+                return environment.get(varName);
+            }
         }
         throw new Error(`Variable '${varName}' not found`);
     }
 
     visitAssignmentExpression(ctx: AssignmentExpressionContext): any {
-        // Get the left-hand side expression
         const lhsCtx = ctx.expression(0);
-        
-        // Extract the variable name from the path expression
         let varName: string;
+
         if (lhsCtx instanceof PathExpression_Context) {
             const pathCtx = lhsCtx.pathExpression();
             if (pathCtx) {
                 varName = pathCtx.pathInExpression().pathExprSegment()[0].pathIdentSegment().identifier().getText();
             }
         }
-        
+
         if (!varName) {
             throw new Error('Invalid assignment: LHS must be a variable name');
         }
-        
+
         // Evaluate the right-hand side
         const rhs = this.visitExpression(ctx.expression(1));
-        
-        // Update the value in scope
-        this.scope.set(varName, rhs);
+
+        // Update the value in the innermost environment where this variable exists
+        for (let i = this.environmentStack.length - 1; i >= 0; i--) {
+            const environment = this.environmentStack[i];
+            if (environment.has(varName)) {
+                environment.set(varName, rhs);
+                return rhs;
+            }
+        }
+
+        // If variable doesn't exist in any environment, create it in the current environment
+        this.getCurrentEnvironment().set(varName, rhs);
         return rhs;
     }
 
