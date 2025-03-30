@@ -1,7 +1,7 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { BlockExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 
@@ -60,8 +60,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
         try {
             // Execute statements in the block
-            const result = this.visitStatements(ctx.statements());
-            return result;
+            return this.visitStatements(ctx.statements());
         } finally {
             // Always exit the environment, even if there's an error
             this.exitEnvironment();
@@ -70,11 +69,16 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     // Visit statements
     visitStatements(ctx: StatementsContext): any {
-        let result = null;
-        for (const stmt of ctx.statement()) {
-            result = this.visitStatement(stmt);
+        let lastResult: any = null;
+        if (ctx.statement()) {
+            for (const stmt of ctx.statement()) {
+                lastResult = this.visitStatement(stmt);
+            }
         }
-        return result;
+        if (ctx.expression()) {
+            lastResult = this.visitExpression(ctx.expression());
+        }
+        return lastResult;
     }
 
     // Visit a statement
@@ -97,6 +101,21 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         return null;
     }
 
+    visitArithmeticOrLogicalExpression(ctx: ArithmeticOrLogicalExpressionContext): any {
+        const left = this.visitExpression(ctx.expression(0));
+        const right = this.visitExpression(ctx.expression(1));
+        if (ctx.STAR()) {
+            return left * right;
+        } else if (ctx.SLASH()) {
+            return left / right;
+        } else if (ctx.PLUS()) {
+            return left + right;
+        } else if (ctx.MINUS()) {
+            return left - right;
+        }
+        throw new Error(`Unsupported arithmetic operator: ${ctx.getText()}`);
+    }
+
     visitExpressionWithBlock(ctx: ExpressionWithBlockContext): any {
         if (ctx.blockExpression()) {
             return this.visitBlockExpression(ctx.blockExpression());
@@ -109,7 +128,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         const varName = ctx.patternNoTopAlt().patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText();
         const value = this.visitExpression(ctx.expression());
         this.getCurrentEnvironment().set(varName, value);
-        return value;
+        return null;
     }
 
     // Visit an expression
@@ -118,6 +137,10 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitLiteralExpression(ctx.literalExpression());
         } else if (ctx.pathExpression) {
             return this.visitPathExpression(ctx.pathExpression());
+        } else if (ctx instanceof ArithmeticOrLogicalExpressionContext) {
+            return this.visitArithmeticOrLogicalExpression(ctx);
+        } else if (ctx instanceof GroupedExpressionContext) {
+            return this.visitExpression(ctx.expression());
         }
         // Add handling for other expression types as needed
         return null;

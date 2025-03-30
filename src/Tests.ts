@@ -72,7 +72,7 @@ async function runTests() {
     await runTest(
         `fn main() {
             let x = 5;
-            x;
+            x
         }`,
         5,
         "Variable assignment"
@@ -82,7 +82,7 @@ async function runTests() {
         `fn main() {
             let x = 5;
             x = 3;
-            x;
+            x
         }`,
         5,
         "Variable reassignment ignored"
@@ -91,7 +91,7 @@ async function runTests() {
     await runTest(
         `fn main() {
             let x = 3;
-            x;
+            x
         }`,
         3,
         "Variable retrieval"
@@ -106,7 +106,7 @@ async function runTests() {
                     let x = 3;
                 }
             }
-            x;
+            x
         }`,
         1,
         "Scope isolation"
@@ -128,7 +128,7 @@ async function runTests() {
         `fn main() {
             {
                 let x = 1;
-                x;
+                x
             }
         }`,
         1,
@@ -140,7 +140,7 @@ async function runTests() {
             {
                 let x = 1;
                 ;
-                x;
+                x
             }
         }`,
         1,
@@ -164,7 +164,7 @@ async function runTests() {
             {
                 {}
                 let x = 1;
-                x;
+                x
             }
         }`,
         1,
@@ -179,7 +179,7 @@ async function runTests() {
                     let y = 2;
                     {
                         x;
-                        y;
+                        y
                     }
                 }
             }
@@ -195,12 +195,142 @@ async function runTests() {
                 let x = 2;
                 {
                     let x = 3;
-                    x;
+                    x
                 }
             }
         }`,
         3,
         "Shadowing in nested blocks"
+    );
+
+    await runTest(
+        `fn main() {
+            2 + 3
+        }`,
+        5,
+        "Addition operation"
+    );
+
+    await runTest(
+        `fn main() {
+            10 - 4
+        }`,
+        6,
+        "Subtraction operation"
+    );
+
+    await runTest(
+        `fn main() {
+            4 * 5
+        }`,
+        20,
+        "Multiplication operation"
+    );
+
+    await runTest(
+        `fn main() {
+            10 / 2
+        }`,
+        5,
+        "Division operation"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            x + 3
+        }`,
+        8,
+        "Variable assignment with addition"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 10;
+            let y = 3;
+            x - y
+        }`,
+        7,
+        "Variable assignment with subtraction"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 4;
+            let y = 3;
+            x * y
+        }`,
+        12,
+        "Variable assignment with multiplication"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 20;
+            let y = 4;
+            x / y
+        }`,
+        5,
+        "Variable assignment with division"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 2;
+            let y = 3;
+            x * y + 4
+        }`,
+        10,
+        "Compound arithmetic with multiplication and addition"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 6;
+            let y = 3;
+            x / y - 1
+        }`,
+        1,
+        "Compound arithmetic with division and subtraction"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 4;
+            let y = 2;
+            let z = 3;
+            x * y + z - 1
+        }`,
+        10,
+        "Compound arithmetic with multiple variables"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 10;
+            let y = 3;
+            (x + y) * 2
+        }`,
+        26,
+        "Arithmetic with parentheses"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 15;
+            let y = 5;
+            x / y * 2
+        }`,
+        6,
+        "Complex arithmetic with multiple operations"
+    );
+
+    await runTest(
+        `fn main() {
+            (1 + 2) * 3 / (6 - 3)
+        }`,
+        3,
+        "Operator precedence"
     );
 
     // Print summary
