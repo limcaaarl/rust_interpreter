@@ -389,6 +389,66 @@ async function runTests() {
         "Statement not producing value"
     );
 
+    await runTest(
+        `fn main() {
+            if true {
+                1
+            } else {
+                2
+            }   
+        }`,
+        1,
+        "If-else statement (true)"
+    );
+
+    await runTest(
+        `fn main() {
+            if false {
+                1
+            } else {
+                2
+            }   
+        }`,
+        2,
+        "If-else statement (false)"
+    );
+
+    await runTest(
+        `fn main() {
+            if false {
+                1
+            } else if true {
+                2
+            } else {
+                3
+            }
+        }`,
+        2,
+        "Else if statement (true)"
+    );
+
+    await runTest(
+        `fn main() {
+            if false {
+                1
+            } else if false {
+                2
+            } else {
+                3
+            }
+        }`,
+        3,
+        "Else if statement (false)"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = if 1 == 1 { 2 } else { 3 };
+            x
+        }`,
+        2,
+        "'Ternary' operator"
+    );
 
     // Print summary
     const totalTests = testsPassed + testsFailed;

@@ -1,7 +1,7 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
@@ -24,7 +24,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         this.environmentStack.pop();
     }
 
-    // Visit the root crate node
     visitCrate(ctx: CrateContext): any {
         // Find and execute the main function
         for (const item of ctx.item()) {
@@ -35,7 +34,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         throw new Error("No main function found");
     }
 
-    // Visit a function node
     visitFunction_(ctx: Function_Context): any {
         // Enter a new environment for this function
         this.enterEnvironment();
@@ -50,7 +48,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         }
     }
 
-    // Visit a block expression
     visitBlockExpression(ctx: BlockExpressionContext): any {
         if (ctx.statements() === null) {
             // Empty block, just return null
@@ -68,7 +65,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         }
     }
 
-    // Visit statements
     visitStatements(ctx: StatementsContext): any {
         let lastResult: any = null;
         if (ctx.statement()) {
@@ -82,7 +78,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         return lastResult;
     }
 
-    // Visit a statement
     visitStatement(ctx: StatementContext): any {
         if (ctx.letStatement()) {
             this.visitLetStatement(ctx.letStatement());
@@ -121,11 +116,12 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitExpressionWithBlock(ctx: ExpressionWithBlockContext): any {
         if (ctx.blockExpression()) {
             return this.visitBlockExpression(ctx.blockExpression());
+        } else if (ctx.ifExpression()) {
+            return this.visitIfExpression(ctx.ifExpression());
         }
         return null;
     }
 
-    // Visit a let statement
     visitLetStatement(ctx: LetStatementContext): any {
         const varName = ctx.patternNoTopAlt().patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText();
         const value = this.visitExpression(ctx.expression());
@@ -133,7 +129,6 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         return null;
     }
 
-    // Visit an expression
     visitExpression(ctx: any): any {
         if (ctx.literalExpression) {
             return this.visitLiteralExpression(ctx.literalExpression());
@@ -145,6 +140,8 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitExpression(ctx.expression());
         } else if (ctx instanceof ComparisonExpressionContext) {
             return this.visitComparisonExpression(ctx);
+        } else if (ctx.expressionWithBlock) {
+            return this.visitExpressionWithBlock(ctx.expressionWithBlock());
         }
         // Add handling for other expression types as needed
         return null;
@@ -183,7 +180,28 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         throw new Error(`Variable '${varName}' not found`);
     }
 
-    // Visit a literal expression
+    visitIfExpression(ctx: IfExpressionContext): any {
+        // Evaluate the condition
+        const condition = this.visitExpression(ctx.expression());
+
+        // If the condition is true, evaluate the then block
+        if (condition) {
+            return this.visitBlockExpression(ctx.blockExpression()[0]);
+        }
+
+        // If there's an else clause, evaluate it
+        if (ctx.KW_ELSE()) {
+            if (ctx.blockExpression()[1]) {
+                return this.visitBlockExpression(ctx.blockExpression()[1]);
+            } else if (ctx.ifExpression()) {
+                return this.visitIfExpression(ctx.ifExpression());
+            }
+        }
+
+        // If no else clause, return null
+        return null;
+    }
+
     visitLiteralExpression(ctx: LiteralExpressionContext): any {
         if (ctx.INTEGER_LITERAL()) {
             return parseInt(ctx.INTEGER_LITERAL().getText(), 10);
