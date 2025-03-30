@@ -333,6 +333,63 @@ async function runTests() {
         "Operator precedence"
     );
 
+    await runTest(
+        `fn main() {
+            1 == 1
+        }`,
+        true,
+        "Comparison operator: =="
+    );
+
+    await runTest(
+        `fn main() {
+            1 != 1
+        }`,
+        false,
+        "Comparison operator: !="
+    );
+
+    await runTest(
+        `fn main() {
+            1 < 2
+        }`,
+        true,
+        "Comparison operator: <"
+    );
+
+    await runTest(
+        `fn main() {
+            1 <= 2
+        }`,
+        true,
+        "Comparison operator: <="
+    );
+
+    await runTest(
+        `fn main() {
+            2 > 1
+        }`,
+        true,
+        "Comparison operator: >"
+    );
+
+    await runTest(
+        `fn main() {
+            2 >= 2
+        }`,
+        true,
+        "Comparison operator: >="
+    );
+
+    await runTest(
+        `fn main() {
+            {1;}
+        }`,
+        null,
+        "Statement not producing value"
+    );
+
+
     // Print summary
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);

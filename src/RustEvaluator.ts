@@ -1,7 +1,7 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
@@ -85,7 +85,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     // Visit a statement
     visitStatement(ctx: StatementContext): any {
         if (ctx.letStatement()) {
-            return this.visitLetStatement(ctx.letStatement());
+            this.visitLetStatement(ctx.letStatement());
         }
         if (ctx.expressionStatement()) {
             return this.visitExpressionStatement(ctx.expressionStatement());
@@ -95,7 +95,8 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     visitExpressionStatement(ctx: ExpressionStatementContext): any {
         if (ctx.expression()) {
-            return this.visitExpression(ctx.expression());
+            // Visit the expression but ignore the result
+            this.visitExpression(ctx.expression());
         } else if (ctx.expressionWithBlock()) {
             return this.visitExpressionWithBlock(ctx.expressionWithBlock());
         }
@@ -142,9 +143,31 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitArithmeticOrLogicalExpression(ctx);
         } else if (ctx instanceof GroupedExpressionContext) {
             return this.visitExpression(ctx.expression());
+        } else if (ctx instanceof ComparisonExpressionContext) {
+            return this.visitComparisonExpression(ctx);
         }
         // Add handling for other expression types as needed
         return null;
+    }
+
+    visitComparisonExpression(ctx: ComparisonExpressionContext): any {
+        const left = this.visitExpression(ctx.expression(0));
+        const right = this.visitExpression(ctx.expression(1));
+        const operator = ctx.comparisonOperator();
+        if (operator.EQEQ()) {
+            return left === right;
+        } else if (operator.NE()) {
+            return left !== right;
+        } else if (operator.GT()) {
+            return left > right;
+        } else if (operator.LT()) {
+            return left < right;
+        } else if (operator.GE()) {
+            return left >= right;
+        } else if (operator.LE()) {
+            return left <= right;
+        }
+        throw new Error(`Unsupported comparison operator: ${ctx.getText()}`);
     }
 
     visitPathExpression(ctx: PathExpressionContext): any {
@@ -164,6 +187,14 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitLiteralExpression(ctx: LiteralExpressionContext): any {
         if (ctx.INTEGER_LITERAL()) {
             return parseInt(ctx.INTEGER_LITERAL().getText(), 10);
+        } else if (ctx.KW_TRUE()) {
+            return true;
+        } else if (ctx.KW_FALSE()) {
+            return false;
+        } else if (ctx.FLOAT_LITERAL()) {
+            return parseFloat(ctx.FLOAT_LITERAL().getText());
+        } else if (ctx.STRING_LITERAL()) {
+            return JSON.parse(ctx.getText());
         }
         // Handle other literal types
         return null;
