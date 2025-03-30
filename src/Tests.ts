@@ -450,6 +450,18 @@ async function runTests() {
         "'Ternary' operator"
     );
 
+    await runTest(
+        `fn main() {
+            add(3, 4)
+        }
+
+        fn add(x: i32, y: i32) -> i32 { 
+            return x + y;
+        }`,
+        7,
+        "Function call"
+    );
+
     // Print summary
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);

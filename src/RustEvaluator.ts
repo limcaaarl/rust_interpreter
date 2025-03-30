@@ -1,7 +1,7 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, CallExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, ReturnExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
@@ -25,27 +25,57 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     }
 
     visitCrate(ctx: CrateContext): any {
-        // Find and execute the main function
+        // Visit all functions to build function definition first
+        for (const item of ctx.item()) {
+            if (item.visItem()?.function_()) {
+                this.visitFunction_(item.visItem().function_());
+            }
+        }
+
+        // Find and execute the main function automatically
         for (const item of ctx.item()) {
             if (item.visItem()?.function_()?.identifier().NON_KEYWORD_IDENTIFIER().getText() === 'main') {
-                return this.visitFunction_(item.visItem().function_());
+                return this.visitMainFunction((item.visItem().function_()));
             }
         }
         throw new Error("No main function found");
     }
 
-    visitFunction_(ctx: Function_Context): any {
+    visitMainFunction(ctx: Function_Context): any {
         // Enter a new environment for this function
         this.enterEnvironment();
 
         try {
             // Execute the function body
-            const result = this.visitBlockExpression(ctx.blockExpression());
-            return result;
+            return this.visitBlockExpression(ctx.blockExpression());
         } finally {
             // Always exit the environment, even if there's an error
             this.exitEnvironment();
         }
+    }
+
+    visitFunction_(ctx: Function_Context): any {
+        // Enter a new environment for this function
+        // this.enterEnvironment();
+
+        // Store function definition
+        const functionName = ctx.identifier().NON_KEYWORD_IDENTIFIER().getText();
+        const params: string[] = [];
+        if (ctx.functionParameters()) {
+            const functionParamContexts = ctx.functionParameters().functionParam();
+            for (const functionParamContext of functionParamContexts) {
+                params.push(functionParamContext.functionParamPattern().pattern().patternNoTopAlt(0).patternWithoutRange().identifierPattern().identifier().NON_KEYWORD_IDENTIFIER().getText());
+            }
+        }
+
+        // Store function definition
+        this.getCurrentEnvironment().set(functionName, {
+            params,
+            body: ctx.blockExpression(),
+            environment: new Map(this.getCurrentEnvironment())
+        });
+
+        return null;
     }
 
     visitBlockExpression(ctx: BlockExpressionContext): any {
@@ -90,8 +120,7 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 
     visitExpressionStatement(ctx: ExpressionStatementContext): any {
         if (ctx.expression()) {
-            // Visit the expression but ignore the result
-            this.visitExpression(ctx.expression());
+            return this.visitExpression(ctx.expression());
         } else if (ctx.expressionWithBlock()) {
             return this.visitExpressionWithBlock(ctx.expressionWithBlock());
         }
@@ -142,9 +171,49 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitComparisonExpression(ctx);
         } else if (ctx.expressionWithBlock) {
             return this.visitExpressionWithBlock(ctx.expressionWithBlock());
+        } else if (ctx instanceof CallExpressionContext) {
+            return this.visitCallExpression(ctx);
+        } else if (ctx instanceof ReturnExpressionContext) {
+            return this.visitReturnExpression(ctx);
         }
         // Add handling for other expression types as needed
         return null;
+    }
+
+    visitReturnExpression(ctx: ReturnExpressionContext): any {
+        return this.visitExpression(ctx.expression());
+    }
+    visitCallExpression(ctx: CallExpressionContext): any {
+        const functionName = ctx.expression().getText();
+        const closure = this.visitExpression(ctx.expression());
+        const args: any[] = [];
+        if (ctx.callParams()) {
+            for (const expr of ctx.callParams().expression()) {
+                args.push(this.visitExpression(expr));
+            }
+        }
+        const functionDef = this.getCurrentEnvironment().get(functionName);
+        if (!closure) {
+            throw new Error(`Function '${functionName}' not found`);
+        }
+        if (args.length !== closure.params.length) {
+            throw new Error(`Function '${functionName}' expects ${closure.params.length} arguments, but got ${args.length}`);
+        }
+
+        this.enterEnvironment();
+        try {
+            for (let i = 0; i < closure.params.length; i++) {
+                this.getCurrentEnvironment().set(closure.params[i], args[i]);
+            }
+            for (const [key, value] of closure.environment) {
+                if (!this.getCurrentEnvironment().has(key)) {
+                    this.getCurrentEnvironment().set(key, value);
+                }
+            }
+            return this.visitBlockExpression(closure.body);
+        } finally {
+            this.exitEnvironment();
+        }
     }
 
     visitComparisonExpression(ctx: ComparisonExpressionContext): any {
