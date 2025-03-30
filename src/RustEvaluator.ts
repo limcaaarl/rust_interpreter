@@ -4,6 +4,7 @@ import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4n
 import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, InnerAttributeContext, ItemContext, LetStatementContext, LiteralExpressionContext, PathExpression_Context, PathExpressionContext, PathExprSegmentContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
+import { Compiler } from "./compiler/Compiler";
 
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements RustParserVisitor<any> {
     private environmentStack: Map<string, any>[] = [new Map()];
@@ -182,11 +183,13 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
 export class RustEvaluator extends BasicEvaluator {
     private executionCount: number;
     private visitor: RustEvaluatorVisitor;
+    private compiler: Compiler;
 
     constructor(conductor: IRunnerPlugin) {
         super(conductor);
         this.executionCount = 0;
         this.visitor = new RustEvaluatorVisitor();
+        this.compiler = new Compiler();
     }
 
     async evaluateChunk(chunk: string): Promise<void> {
@@ -200,6 +203,10 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Parse the input
             const tree = parser.crate();
+
+            // TODO: Implement VM stuff here
+            const astJson = this.compiler.astToJson(tree);
+            const instructions = this.compiler.compileProgram(astJson);
 
             // Evaluate the parsed tree
             const result = this.visitor.visit(tree);

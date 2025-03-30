@@ -3,7 +3,7 @@ export function findNodeByTag(ast: any, tag: string): any {
     if (ast.tag === tag) return ast;
     if (ast.children) {
         for (const child of ast.children) {
-            const found = findNodeByTag(child, tag); // removed "this."
+            const found = findNodeByTag(child, tag);
             if (found) return found;
         }
     }
@@ -17,7 +17,7 @@ export function extractTerminalValue(ast: any): string {
     }
     if (ast.children) {
         for (const child of ast.children) {
-            const val = extractTerminalValue(child); // removed "this."
+            const val = extractTerminalValue(child);
             if (val) return val;
         }
     }
@@ -27,5 +27,5 @@ export function extractTerminalValue(ast: any): string {
 // Assume extractType is similar to extractTerminalValue but could be more complex.
 export function extractType(ast: any): string {
     // Here, we search for a Terminal inside the Type_ subtree.
-    return extractTerminalValue(ast); // removed "this."
+    return extractTerminalValue(ast);
 }
