@@ -1,7 +1,27 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, CallExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, ReturnExpressionContext, RustParser, StatementContext, StatementsContext, LoopExpressionContext, PredicateLoopExpressionContext, IteratorLoopExpressionContext } from './parser/src/RustParser';
+import {
+    ArithmeticOrLogicalExpressionContext,
+    BlockExpressionContext,
+    CallExpressionContext,
+    ComparisonExpressionContext,
+    CrateContext,
+    ExpressionStatementContext,
+    ExpressionWithBlockContext,
+    Function_Context,
+    GroupedExpressionContext,
+    IfExpressionContext,
+    LetStatementContext,
+    LiteralExpressionContext,
+    LoopExpressionContext,
+    PathExpressionContext,
+    PredicateLoopExpressionContext,
+    ReturnExpressionContext,
+    RustParser,
+    StatementContext,
+    StatementsContext
+} from "./parser/src/RustParser";
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
@@ -299,23 +319,23 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         // - IteratorLoopExpression
         if (ctx.predicateLoopExpression()) {
             return this.visitPredicateLoopExpressionContext(ctx.predicateLoopExpression());
-        } 
+        }
 
         return null;
     }
 
-    visitPredicateLoopExpressionContext(ctx:PredicateLoopExpressionContext): any {
+    visitPredicateLoopExpressionContext(ctx: PredicateLoopExpressionContext): any {
         const loop_start = this.wc
 
         // compile pred
         this.visitExpression(ctx.expression()); // this should be pushing some instructions, currently evaluates to some value
 
         const jof_wc = this.wc++;
-        this.instructions[jof_wc] = {tag: 'JOF', addr: -1};
+        this.instructions[jof_wc] = { tag: 'JOF', addr: -1 };
         // compile body
         this.visitBlockExpression(ctx.blockExpression()); // this should also be pushing some instructions later on
-        this.instructions[this.wc++] = {tag: 'POP'};
-        this.instructions[this.wc++] = {tag: 'GOTO', addr: loop_start};
+        this.instructions[this.wc++] = { tag: 'POP' };
+        this.instructions[this.wc++] = { tag: 'GOTO', addr: loop_start };
         this.instructions[jof_wc].addr = this.wc;
 
         console.log(this.instructions);
