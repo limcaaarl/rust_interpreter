@@ -1,13 +1,16 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
 import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
-import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext } from './parser/src/RustParser';
+import { ArithmeticOrLogicalExpressionContext, BlockExpressionContext, ComparisonExpressionContext, CrateContext, ExpressionStatementContext, ExpressionWithBlockContext, Function_Context, GroupedExpressionContext, IfExpressionContext, LetStatementContext, LiteralExpressionContext, PathExpressionContext, RustParser, StatementContext, StatementsContext, LoopExpressionContext, PredicateLoopExpressionContext, IteratorLoopExpressionContext } from './parser/src/RustParser';
 import { RustParserVisitor } from "./parser/src/RustParserVisitor";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
+import { Instruction } from "./compiler/Instruction";
 
 class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements RustParserVisitor<any> {
     private environmentStack: Map<string, any>[] = [new Map()];
+    private instructions: Instruction[] = [];
+    private wc = 0;
 
     // Get the current environment
     private getCurrentEnvironment(): Map<string, any> {
@@ -118,6 +121,8 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
             return this.visitBlockExpression(ctx.blockExpression());
         } else if (ctx.ifExpression()) {
             return this.visitIfExpression(ctx.ifExpression());
+        } else if (ctx.loopExpression) {
+            return this.visitLoopExpression(ctx.loopExpression());
         }
         return null;
     }
@@ -218,6 +223,35 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
         return null;
     }
 
+    visitLoopExpression(ctx: LoopExpressionContext): any {
+        // Currently this does not support the following types of LoopExpression:
+        // - PredicatePatternLoopExpression
+        // - LabelBlockExpression
+        // - IteratorLoopExpression
+        if (ctx.predicateLoopExpression()) {
+            return this.visitPredicateLoopExpressionContext(ctx.predicateLoopExpression());
+        } 
+
+        return null;
+    }
+
+    visitPredicateLoopExpressionContext(ctx:PredicateLoopExpressionContext): any {
+        const loop_start = this.wc
+
+        // compile pred
+        this.visitExpression(ctx.expression()); // this should be pushing some instructions, currently evaluates to some value
+
+        const jof_wc = this.wc++;
+        this.instructions[jof_wc] = {tag: 'JOF', addr: -1};
+        // compile body
+        this.visitBlockExpression(ctx.blockExpression()); // this should also be pushing some instructions later on
+        this.instructions[this.wc++] = {tag: 'POP'};
+        this.instructions[this.wc++] = {tag: 'GOTO', addr: loop_start};
+        this.instructions[jof_wc].addr = this.wc;
+
+        console.log(this.instructions);
+    }
+
     // Override the default result method from AbstractParseTreeVisitor
     protected defaultResult(): number {
         return 0;
@@ -254,8 +288,8 @@ export class RustEvaluator extends BasicEvaluator {
             const tree = parser.crate();
 
             // TODO: Implement VM stuff here
-            const astJson = this.compiler.astToJson(tree);
-            const instructions = this.compiler.compileProgram(astJson);
+            // const astJson = this.compiler.astToJson(tree);
+            // const instructions = this.compiler.compileProgram(astJson);
 
             // Evaluate the parsed tree
             const result = this.visitor.visit(tree);

@@ -6,4 +6,5 @@ export type Instruction =
     | { tag: "ASSIGN_STATIC"; sym: string; type: string }
     | { tag: "JOF"; addr: number }
     | { tag: "GOTO"; addr: number }
+    | { tag: "POP" }
     | { tag: "DONE" };
