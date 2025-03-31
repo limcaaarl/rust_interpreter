@@ -12,6 +12,6 @@ export type Instruction =
     | { tag: "CALL"; arity: number }
     | { tag: "RESET"; }
     | { tag: "ENTER_SCOPE"; syms: any }
-    | { tag: "EXIT_SCOPE"; syms: any }
+    | { tag: "EXIT_SCOPE"; }
     | { tag: "POP" }
     | { tag: "DONE" };

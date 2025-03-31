@@ -35,7 +35,7 @@ export class Compiler {
     }
 
     private compile(ast: any): void {
-        console.log("Tag: " + ast.tag);
+        // console.log("Tag: " + ast.tag);
         switch (ast.tag) {
             // TODO: function implementation
             // case "Function_":
@@ -61,6 +61,35 @@ export class Compiler {
                         val: term.val,
                     };
                 }
+                break;
+            case "PathExpression_":
+                const symVal = extractTerminalValue(ast);
+                instructions[wc++] = { tag: "LD", sym: symVal };
+                break;
+            case "ComparisonExpression":
+                this.compile(ast.children[0]); // left
+                this.compile(ast.children[2]); // right
+                const binop = extractTerminalValue(ast.children[1]);
+                instructions[wc++] = { tag: "BINOP", sym: binop };
+                break;
+            case "PredicateLoopExpression": // while loops
+                const loop_start = wc;
+
+                const pred = ast.children[1];
+                this.compile(pred);
+
+                const jof_wc = wc++;
+                instructions[jof_wc] = { tag: "JOF", addr: -1 };
+
+                const body = ast.children[2];
+                this.compile(body);
+                
+                instructions[wc++] = { tag: "POP" };
+                instructions[wc++] = {
+                    tag: "GOTO",
+                    addr: loop_start,
+                };
+                instructions[jof_wc].addr = wc;
                 break;
             default:
                 // for nodes not specifically handled, recursively compile their children.
