@@ -37,56 +37,10 @@ export class Compiler {
     private compile(ast: any): void {
         console.log("Tag: " + ast.tag);
         switch (ast.tag) {
-            case "Crate":
-                if (ast.children) {
-                    ast.children.forEach((child: any) => this.compile(child));
-                }
-                break;
             // TODO: function implementation
             // case "Function_":
             //     // find child that contains the function name
             //     break;
-            case "ConstantItem":
-                // name of constant
-                const constNameNode = findNodeByTag(ast, "Identifier");
-                const constName = extractTerminalValue(constNameNode);
-
-                // constant type
-                const constTypeNode = findNodeByTag(ast, "Type_");
-                const constType = extractType(constTypeNode);
-
-                // value being assigned
-                const constLiteralNode = findNodeByTag(
-                    ast,
-                    "LiteralExpression_"
-                ); // a nested child, recursively compile it
-                this.compile(constLiteralNode);
-
-                instructions[wc++] = {
-                    tag: "ASSIGN_CONST",
-                    sym: constName,
-                    type: constType,
-                };
-                break;
-            case "StaticItem":
-                const staticNameNode = findNodeByTag(ast, "Identifier");
-                const staticName = extractTerminalValue(staticNameNode);
-
-                const staticTypeNode = findNodeByTag(ast, "Type_");
-                const staticType = extractType(staticTypeNode);
-
-                const staticLiteralNode = findNodeByTag(
-                    ast,
-                    "LiteralExpression_"
-                );
-                this.compile(staticLiteralNode);
-
-                instructions[wc++] = {
-                    tag: "ASSIGN_STATIC",
-                    sym: staticName,
-                    type: staticType,
-                };
-                break;
             case "LetStatement": // TODO: recheck LetStatement after done with function
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
