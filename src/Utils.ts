@@ -26,10 +26,11 @@ export function scan(node: any): any[] {
     // Base case: if the node is null or undefined
     if (!node) return [];
 
-    // If this is an identifier tag, extract its value
-    if (node.tag === "Identifier" && node.children && node.children.length > 0) {
-        // The identifier's actual value is in a Terminal child node
-        const terminal = node.children.find(child => child.tag === "Terminal");
+    // If this is a LetStatement or Function_, extract its symbol
+    if ((node.tag === "LetStatement" || node.tag === "Function_") && node.children && node.children.length > 0) {
+        // The identifier's actual value is in the child Terminal node of the first Identifier node
+        const identifier = findNodeByTag(node, "Identifier");
+        const terminal = identifier && findNodeByTag(identifier, "Terminal");
         if (terminal && terminal.val) {
             return [terminal.val];
         }
