@@ -5,6 +5,8 @@ import { RustParser } from "./parser/src/RustParser";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
 import { RustEvaluatorVisitor } from "./RustEvaluatorVisitor";
+import { displayInstructions } from "./compiler/CompilerHelper";
+import { VirtualMachine } from "./VirtualMachine";
 
 export class RustEvaluator extends BasicEvaluator {
     private executionCount: number;
@@ -30,15 +32,19 @@ export class RustEvaluator extends BasicEvaluator {
             // Parse the input
             const tree = parser.crate();
 
-            console.log(tree.toStringTree(parser));
-
             // TODO: Implement VM stuff here
-            // const astJson = this.compiler.astToJson(tree);
-            // const instructions = this.compiler.compileProgram(astJson);
+            const astJson = this.compiler.astToJson(tree);
+            console.log(JSON.stringify(astJson, null, 2));
+            const instructions = this.compiler.compileProgram(astJson);
+            // displayInstructions(instructions);
 
-            // Evaluate the parsed tree
-            const result = this.visitor.visit(tree);
-
+            // Uncomment the following line to evaluate using RustEvaluatorVisitor
+            // const result = this.visitor.visit(tree);
+            
+            // Uncomment the following line to evaluate using VirtualMachine
+            const vm = new VirtualMachine(instructions);
+            const result = vm.run();
+            
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
 
