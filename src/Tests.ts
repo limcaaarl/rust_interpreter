@@ -464,6 +464,18 @@ async function runTests() {
 
     await runTest(
         `fn main() {
+            add(3, 4)
+        }
+
+        fn add(x: i32, y: i32) -> i32 { 
+            x + y
+        }`,
+        7,
+        "Function call implicit return"
+    );
+
+    await runTest(
+        `fn main() {
             let x = 5;
             let y = 3;
             let z = add(x, y);
