@@ -1,6 +1,6 @@
 import { Instruction } from "./compiler/Instruction";
 
-class VirtualMachine {
+export class VirtualMachine {
     private PC: number = 0;
     private OS: any[] = [];
     private E: any; // TODO: Change this to a more suitable DS

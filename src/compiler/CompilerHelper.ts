@@ -1,3 +1,5 @@
+import { Instruction } from "./Instruction";
+
 // Recursively search for the first node with a given tag.
 export function findNodeByTag(ast: any, tag: string): any {
     if (ast.tag === tag) return ast;
@@ -28,4 +30,11 @@ export function extractTerminalValue(ast: any): string {
 export function extractType(ast: any): string {
     // Here, we search for a Terminal inside the Type_ subtree.
     return extractTerminalValue(ast);
+}
+
+export function displayInstructions(instructions: Instruction[]): void {
+    console.log("========== Instructions ==========");
+    for (const instruction of instructions) {
+        console.log(instruction);
+    }
 }
