@@ -105,8 +105,8 @@ export function apply_binop(op: string, v2: any, v1: any): any {
         '<=': (x, y) => x <= y,
         '>=': (x, y) => x >= y,
         '>': (x, y) => x > y,
-        '===': (x, y) => x === y,
-        '!==': (x, y) => x !== y
+        '==': (x, y) => x === y,
+        '!=': (x, y) => x !== y
     };
 
     return binop_microcode[op](v1, v2);
