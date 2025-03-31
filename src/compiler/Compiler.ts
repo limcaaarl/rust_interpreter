@@ -138,6 +138,19 @@ export class Compiler {
                 instructions[goto_wc].addr = wc;
                 break;
             }
+            case "ArithmeticOrLogicalExpression": {
+                this.compile(ast.children[0]); // left
+                this.compile(ast.children[2]); // right
+                const binop = extractTerminalValue(ast.children[1]);
+                instructions[wc++] = { tag: "BINOP", sym: binop };
+                break;
+            }
+            case "NegationExpression": {
+                this.compile(ast.children[1]);
+                const unop = extractTerminalValue(ast.children[0]);
+                instructions[wc++] = { tag: "UNOP", sym: unop };
+                break;
+            }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
                 this.compileChildren(ast);

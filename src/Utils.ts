@@ -1,3 +1,4 @@
+import { isBooleanObject } from "util/types";
 import { findNodeByTag } from "./compiler/CompilerHelper";
 
 export class Pair {
@@ -90,4 +91,37 @@ export function is_unassigned(v: any): boolean {
         typeof v === "object" &&
         v.hasOwnProperty('tag') &&
         v.tag === 'unassigned'
+}
+
+// v2 is popped before v1
+export function apply_binop(op: string, v2: any, v1: any): any {
+    const binop_microcode = {
+        '+': (x, y) => x + y,
+        '*': (x, y) => x * y,
+        '-': (x, y) => x - y,
+        '/': (x, y) => x / y,
+        '%': (x, y) => x % y,
+        '<': (x, y) => x < y,
+        '<=': (x, y) => x <= y,
+        '>=': (x, y) => x >= y,
+        '>': (x, y) => x > y,
+        '===': (x, y) => x === y,
+        '!==': (x, y) => x !== y
+    };
+
+    return binop_microcode[op](v1, v2);
+}
+
+export function is_boolean(x: any): boolean {
+    return x === true || x === false;
+}
+
+export function apply_unop(op: string, v: any): any {
+    const unop_microcode = {
+        '-': x => - x,
+        '!': x => is_boolean(x)
+            ? !x
+            : error('! expects boolean, found: ' + x)
+    };
+    return unop_microcode[op](v);
 }

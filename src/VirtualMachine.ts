@@ -1,6 +1,6 @@
 import { displayInstructions } from "./compiler/CompilerHelper";
 import { Instruction } from "./compiler/Instruction";
-import { head, pair, tail, Pair, error, is_null, extend, lookup, assign_value, UNASSIGNED } from "./Utils";
+import { pair, Pair, extend, lookup, assign_value, UNASSIGNED, apply_binop, apply_unop } from "./Utils";
 
 export class VirtualMachine {
     // Frames are objects that map symbols (strings) to values.
@@ -64,6 +64,18 @@ export class VirtualMachine {
                 this.PC++;
                 this.E = this.RTS.pop().env;
                 break;
+            case "BINOP": {
+                this.PC++;
+                const result = apply_binop(instr.sym, this.OS.pop(), this.OS.pop());
+                this.OS.push(result);
+                break;
+            }
+            case "UNOP": {
+                this.PC++;
+                const result = apply_unop(instr.sym, this.OS.pop());
+                this.OS.push(result);
+                break;
+            }
             default:
                 throw new Error("Unknown instruction tag: " + instr.tag);
         }
