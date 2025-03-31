@@ -115,6 +115,29 @@ export class Compiler {
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
+            case "IfExpression": {
+                const pred = ast.children[1];
+                this.compile(pred);
+
+                const jof_wc = wc++;
+                instructions[jof_wc] = { tag: "JOF", addr: -1 };
+
+                const cons = ast.children[2];
+                this.compile(cons);
+
+                const goto_wc = wc++; 
+                instructions[goto_wc] = { tag: 'GOTO', addr: -1  };
+                
+                const altExists = ast.children.length > 4;
+                if(altExists) {
+                    const alternative_address = wc;
+                    instructions[jof_wc].addr = alternative_address;
+                    const cons = ast.children[4];
+                    this.compile(cons);
+                }
+                instructions[goto_wc].addr = wc;
+                break;
+            }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
                 this.compileChildren(ast);
