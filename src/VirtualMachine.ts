@@ -1,6 +1,6 @@
 import { displayInstructions } from "./compiler/CompilerHelper";
 import { Instruction } from "./compiler/Instruction";
-import { head, pair, tail, Pair, error, is_null } from "./Utils";
+import { head, pair, tail, Pair, error, is_null, extend, lookup, assign_value, UNASSIGNED } from "./Utils";
 
 export class VirtualMachine {
     // Frames are objects that map symbols (strings) to values.
@@ -20,48 +20,6 @@ export class VirtualMachine {
 
     constructor(instructions: Instruction[]) {
         this.instr = instructions;
-    }
-
-    private lookup(symbol: string, e: Pair): any {
-        if (is_null(e))
-            error('unbound name: ' + symbol)
-        if (head(e).hasOwnProperty(symbol)) {
-            const v = head(e)[symbol]
-            if (this.is_unassigned(v))
-                error('unassigned name: ' + symbol)
-            return v
-        }
-        return this.lookup(symbol, tail(e))
-    }
-
-    private assign_value(x: string, v: any, e: Pair): void {
-        if (is_null(e))
-            error('unbound name: ' + x)
-        if (head(e).hasOwnProperty(x)) {
-            head(e)[x] = v
-        } else {
-            this.assign_value(x, v, tail(e))
-        }
-    }
-
-    private extend(xs: string[], vs: any[], e: Pair): Pair {
-        if (vs.length > xs.length) error('too many arguments')
-        if (vs.length < xs.length) error('too few arguments')
-        const new_frame = {}
-        for (let i = 0; i < xs.length; i++)
-            new_frame[xs[i]] = vs[i]
-        return pair(new_frame, e)
-    }
-
-    // At the start of executing a block, local 
-    // variables refer to unassigned values.
-    private unassigned = { tag: 'unassigned' }
-
-    private is_unassigned(v: any): boolean {
-        return v !== null &&
-            typeof v === "object" &&
-            v.hasOwnProperty('tag') &&
-            v.tag === 'unassigned'
     }
 
     // runs the machine code instructions
@@ -89,18 +47,18 @@ export class VirtualMachine {
                 break;
             case "LD":
                 this.PC++;
-                this.OS.push(this.lookup(instr.sym, this.E));
+                this.OS.push(lookup(instr.sym, this.E));
                 break;
             case "ASSIGN":
                 this.PC++;
-                this.assign_value(instr.sym, this.peek(), this.E);
+                assign_value(instr.sym, this.peek(), this.E);
                 break;
             case "ENTER_SCOPE":
                 this.PC++;
                 this.RTS.push({ tag: 'BLOCK_FRAME', env: this.E });
                 const locals = instr.syms;
-                const unassigneds = locals.map(_ => this.unassigned);
-                this.E = this.extend(locals, unassigneds, this.E);
+                const unassigneds = locals.map(_ => UNASSIGNED);
+                this.E = extend(locals, unassigneds, this.E);
                 break;
             case "EXIT_SCOPE":
                 this.PC++;

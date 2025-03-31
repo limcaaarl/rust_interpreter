@@ -1,3 +1,5 @@
+import { findNodeByTag } from "./compiler/CompilerHelper";
+
 export class Pair {
     constructor(public head: any, public tail: any) { }
 }
@@ -46,4 +48,46 @@ export function scan(node: any): any[] {
 
     // If none of the above, return empty array
     return [];
+}
+
+export function extend(xs: string[], vs: any[], e: Pair): Pair {
+    if (vs.length > xs.length) error('too many arguments')
+    if (vs.length < xs.length) error('too few arguments')
+    const new_frame = {}
+    for (let i = 0; i < xs.length; i++)
+        new_frame[xs[i]] = vs[i]
+    return pair(new_frame, e)
+}
+
+export function assign_value(x: string, v: any, e: Pair): void {
+    if (is_null(e))
+        error('unbound name: ' + x)
+    if (head(e).hasOwnProperty(x)) {
+        head(e)[x] = v
+    } else {
+        assign_value(x, v, tail(e))
+    }
+}
+
+export function lookup(symbol: string, e: Pair): any {
+    if (is_null(e))
+        error('unbound name: ' + symbol)
+    if (head(e).hasOwnProperty(symbol)) {
+        const v = head(e)[symbol]
+        if (is_unassigned(v))
+            error('unassigned name: ' + symbol)
+        return v
+    }
+    return lookup(symbol, tail(e))
+}
+
+// At the start of executing a block, local 
+// variables refer to unassigned values.
+export const UNASSIGNED = { tag: 'unassigned' }
+
+export function is_unassigned(v: any): boolean {
+    return v !== null &&
+        typeof v === "object" &&
+        v.hasOwnProperty('tag') &&
+        v.tag === 'unassigned'
 }
