@@ -6,6 +6,10 @@ import {
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 
+import {
+    scan
+} from "../Utils";
+
 let instructions: Instruction[] = [];
 let wc = 0;
 
@@ -41,7 +45,7 @@ export class Compiler {
             // case "Function_":
             //     // find child that contains the function name
             //     break;
-            case "LetStatement": // TODO: recheck LetStatement after done with function
+            case "LetStatement": {// TODO: recheck LetStatement after done with function
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
@@ -52,8 +56,12 @@ export class Compiler {
                     tag: "ASSIGN",
                     sym: letName,
                 };
+
+                // Clear the assigned value from OS
+                instructions[wc++] = { tag: "POP" };
                 break;
-            case "LiteralExpression":
+            }
+            case "LiteralExpression": {
                 if (ast.children && ast.children.length > 0) {
                     const term = ast.children[0];
                     instructions[wc++] = {
@@ -62,17 +70,20 @@ export class Compiler {
                     };
                 }
                 break;
-            case "PathExpression_":
+            }
+            case "PathExpression_": {
                 const symVal = extractTerminalValue(ast);
                 instructions[wc++] = { tag: "LD", sym: symVal };
                 break;
-            case "ComparisonExpression":
+            }
+            case "ComparisonExpression": {
                 this.compile(ast.children[0]); // left
                 this.compile(ast.children[2]); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
-            case "PredicateLoopExpression": // while loops
+            }
+            case "PredicateLoopExpression": { // while loops
                 const loop_start = wc;
 
                 const pred = ast.children[1];
@@ -81,9 +92,10 @@ export class Compiler {
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
+
                 const body = ast.children[2];
                 this.compile(body);
-                
+
                 instructions[wc++] = { tag: "POP" };
                 instructions[wc++] = {
                     tag: "GOTO",
@@ -91,12 +103,20 @@ export class Compiler {
                 };
                 instructions[jof_wc].addr = wc;
                 break;
-            default:
-                // for nodes not specifically handled, recursively compile their children.
-                if (ast.children && ast.children.length > 0) {
-                    ast.children.forEach((child: any) => this.compile(child));
-                }
+            }
+            case "BlockExpression": {
+                const body = findNodeByTag(ast, "Statements");
+                const locals = scan(body);
+                instructions[wc++] = { tag: 'ENTER_SCOPE', syms: locals };
+                this.compileChildren(ast);
+                instructions[wc++] = { tag: 'EXIT_SCOPE' };
                 break;
+            }
+            default: {
+                // for nodes not specifically handled, recursively compile their children.
+                this.compileChildren(ast);
+                break;
+            }
         }
     }
 
@@ -106,5 +126,11 @@ export class Compiler {
         this.compile(ast);
         instructions[wc++] = { tag: "DONE" };
         return instructions;
+    }
+
+    private compileChildren(ast: any): void {
+        if (ast.children && ast.children.length > 0) {
+            ast.children.forEach((child: any) => this.compile(child));
+        }
     }
 }
