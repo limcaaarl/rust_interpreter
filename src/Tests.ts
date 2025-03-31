@@ -520,6 +520,22 @@ async function runTests() {
         "Recursion"
     );
 
+    await runTest(
+        `fn main() {
+            -1
+        }`,
+        -1,
+        "Negation unary operator (number)"
+    );
+
+    await runTest(
+        `fn main() {
+            !true
+        }`,
+        false,
+        "Negation unary operator (boolean)"
+    );
+
 
     // Print summary
     const totalTests = testsPassed + testsFailed;
