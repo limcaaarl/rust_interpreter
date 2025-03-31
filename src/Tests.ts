@@ -327,7 +327,7 @@ async function runTests() {
 
     await runTest(
         `fn main() {
-            (1 + 2) * 3 / (6 - 3)
+            (1 + 2) * 3 / (5 - 2)
         }`,
         3,
         "Operator precedence"
