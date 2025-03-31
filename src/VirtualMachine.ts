@@ -2,66 +2,66 @@ import { displayInstructions } from "./compiler/CompilerHelper";
 import { Instruction } from "./compiler/Instruction";
 import { head, pair, tail, Pair, error, is_null } from "./Utils";
 
-// Frames are objects that map symbols (strings) to values.
-
-const global_frame = {}
-
-// An environment is null or a pair whose head is a frame 
-// and whose tail is an environment.
-const empty_environment = null
-const global_environment = pair(global_frame, empty_environment);
-
-const lookup = (symbol, e) => {
-    if (is_null(e))
-        error('unbound name: ' + symbol)
-    if (head(e).hasOwnProperty(symbol)) {
-        const v = head(e)[symbol]
-        if (is_unassigned(v))
-            error('unassigned name: ' + symbol)
-        return v
-    }
-    return lookup(symbol, tail(e))
-}
-
-const assign_value = (x, v, e) => {
-    if (is_null(e))
-        error('unbound name: ' + x)
-    if (head(e).hasOwnProperty(x)) {
-        head(e)[x] = v
-    } else {
-        assign_value(x, v, tail(e))
-    }
-}
-
-const extend = (xs, vs, e) => {
-    if (vs.length > xs.length) error('too many arguments')
-    if (vs.length < xs.length) error('too few arguments')
-    const new_frame = {}
-    for (let i = 0; i < xs.length; i++)
-        new_frame[xs[i]] = vs[i]
-    return pair(new_frame, e)
-}
-
-// At the start of executing a block, local 
-// variables refer to unassigned values.
-const unassigned = { tag: 'unassigned' }
-
-const is_unassigned = v => {
-    return v !== null &&
-        typeof v === "object" &&
-        v.hasOwnProperty('tag') &&
-        v.tag === 'unassigned'
-}
-
 export class VirtualMachine {
+    // Frames are objects that map symbols (strings) to values.
+    private global_frame: any = {}
+
+    // An environment is null or a pair whose head is a frame 
+    // and whose tail is an environment.
+    private empty_environment: Pair = null
+    private global_environment: Pair = pair(this.global_frame, this.empty_environment);
+
+    // VM Registers
     private PC: number = 0;
     private OS: any[] = [];
-    private E: Pair = global_environment;
+    private E: Pair = this.global_environment;
     private RTS: any[] = [];
     private instr: Instruction[];
 
     constructor(instructions: Instruction[]) {
         this.instr = instructions;
+    }
+
+    private lookup(symbol: string, e: Pair): any {
+        if (is_null(e))
+            error('unbound name: ' + symbol)
+        if (head(e).hasOwnProperty(symbol)) {
+            const v = head(e)[symbol]
+            if (this.is_unassigned(v))
+                error('unassigned name: ' + symbol)
+            return v
+        }
+        return this.lookup(symbol, tail(e))
+    }
+
+    private assign_value(x: string, v: any, e: Pair): void {
+        if (is_null(e))
+            error('unbound name: ' + x)
+        if (head(e).hasOwnProperty(x)) {
+            head(e)[x] = v
+        } else {
+            this.assign_value(x, v, tail(e))
+        }
+    }
+
+    private extend(xs: string[], vs: any[], e: Pair): Pair {
+        if (vs.length > xs.length) error('too many arguments')
+        if (vs.length < xs.length) error('too few arguments')
+        const new_frame = {}
+        for (let i = 0; i < xs.length; i++)
+            new_frame[xs[i]] = vs[i]
+        return pair(new_frame, e)
+    }
+
+    // At the start of executing a block, local 
+    // variables refer to unassigned values.
+    private unassigned = { tag: 'unassigned' }
+
+    private is_unassigned(v: any): boolean {
+        return v !== null &&
+            typeof v === "object" &&
+            v.hasOwnProperty('tag') &&
+            v.tag === 'unassigned'
     }
 
     // runs the machine code instructions
@@ -89,8 +89,7 @@ export class VirtualMachine {
                 break;
             case "LD":
                 this.PC++;
-                // TODO: implement a lookup function to fetch variable value
-                // this.OS.push(this.lookup(instr.sym));
+                this.OS.push(this.lookup(instr.sym, this.E));
                 break;
             case "ASSIGN":
                 this.PC++;
@@ -100,8 +99,8 @@ export class VirtualMachine {
                 this.PC++;
                 this.RTS.push({ tag: 'BLOCK_FRAME', env: this.E });
                 const locals = instr.syms;
-                const unassigneds = locals.map(_ => unassigned);
-                this.E = extend(locals, unassigneds, this.E);
+                const unassigneds = locals.map(_ => this.unassigned);
+                this.E = this.extend(locals, unassigneds, this.E);
                 break;
             case "EXIT_SCOPE":
                 this.PC++;
@@ -114,16 +113,6 @@ export class VirtualMachine {
 
     private peek(): any {
         return this.OS[this.OS.length - 1];
-    }
-
-    private assign_value(name: string, value: any, env: Pair): void {
-        if (is_null(env))
-            throw new Error('unbound name:' + name)
-        if (head(env).hasOwnProperty(name)) {
-            head(env)[name] = value
-        } else {
-            assign_value(name, value, tail(env))
-        }
     }
 
     private debugVm(currentInstr: Instruction): void {
