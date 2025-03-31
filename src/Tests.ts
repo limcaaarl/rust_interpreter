@@ -385,7 +385,7 @@ async function runTests() {
         `fn main() {
             {1;}
         }`,
-        null,
+        undefined,
         "Statement not producing value"
     );
 
