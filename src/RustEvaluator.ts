@@ -134,20 +134,30 @@ class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implements Rust
     visitStatement(ctx: StatementContext): any {
         if (ctx.letStatement()) {
             this.visitLetStatement(ctx.letStatement());
-        }
-        if (ctx.expressionStatement()) {
-            return this.visitExpressionStatement(ctx.expressionStatement());
+        } else if (ctx.expressionStatement()) {
+            if (ctx.SEMI()) {
+                this.visitExpressionStatement(ctx.expressionStatement());
+            } else {
+                return this.visitExpressionStatement(ctx.expressionStatement());
+            }
         }
         return null;
     }
 
     visitExpressionStatement(ctx: ExpressionStatementContext): any {
+        let result = null;
+
         if (ctx.expression()) {
-            return this.visitExpression(ctx.expression());
+            if (ctx.SEMI() && !(ctx.expression() instanceof ReturnExpressionContext)) {
+                this.visitExpression(ctx.expression());
+            } else {
+                result = this.visitExpression(ctx.expression());
+            }
         } else if (ctx.expressionWithBlock()) {
-            return this.visitExpressionWithBlock(ctx.expressionWithBlock());
+            result = this.visitExpressionWithBlock(ctx.expressionWithBlock());
         }
-        return null;
+
+        return result;
     }
 
     visitArithmeticOrLogicalExpression(ctx: ArithmeticOrLogicalExpressionContext): any {
