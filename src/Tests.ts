@@ -119,7 +119,7 @@ async function runTests() {
             }
             x;
         }`,
-        "Error: Variable 'x' not found",
+        "Error: unassigned name: x",
         "Block scope isolation",
         true
     );
@@ -154,7 +154,7 @@ async function runTests() {
                 let x = 1;
             }
         }`,
-        "Variable 'x' not found",
+        "Error: unassigned name: x",
         "Block with variable declaration after use",
         true
     );

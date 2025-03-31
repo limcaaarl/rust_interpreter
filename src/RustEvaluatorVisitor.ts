@@ -289,7 +289,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implemen
                 return environment.get(varName);
             }
         }
-        throw new Error(`Variable '${varName}' not found`);
+        throw new Error(`unassigned name: ${varName}`);
     }
 
     visitIfExpression(ctx: IfExpressionContext): any {
