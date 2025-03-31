@@ -1,4 +1,6 @@
+import { ParseTree } from "antlr4ng";
 import { Instruction } from "./Instruction";
+import { LiteralExpressionContext } from "../parser/src/RustParser";
 
 // Recursively search for the first node with a given tag.
 export function findNodeByTag(ast: any, tag: string): any {
@@ -13,7 +15,7 @@ export function findNodeByTag(ast: any, tag: string): any {
 }
 
 // Extract a terminal value from a node, assuming it eventually contains a Terminal node.
-export function extractTerminalValue(ast: any): string {
+export function extractTerminalValue(ast: any): any {
     if (ast.tag === "Terminal") {
         return ast.val;
     }
@@ -36,5 +38,19 @@ export function displayInstructions(instructions: Instruction[]): void {
     console.log("========== Instructions ==========");
     for (const instruction of instructions) {
         console.log(instruction);
+    }
+}
+
+export function getLiteralVal(node: LiteralExpressionContext) {
+    if (node.INTEGER_LITERAL()) {
+        return parseInt(node.INTEGER_LITERAL().getText(), 10);
+    } else if (node.KW_TRUE()) {
+        return true;
+    } else if (node.KW_FALSE()) {
+        return false;
+    } else if (node.FLOAT_LITERAL()) {
+        return parseFloat(node.FLOAT_LITERAL().getText());
+    } else if (node.STRING_LITERAL()) {
+        return JSON.parse(node.getText());
     }
 }

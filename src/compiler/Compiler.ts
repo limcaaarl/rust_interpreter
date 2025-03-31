@@ -2,13 +2,11 @@ import { ParseTree, ParserRuleContext, TerminalNode } from "antlr4ng";
 import {
     findNodeByTag,
     extractTerminalValue,
-    extractType,
+    getLiteralVal,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
-
-import {
-    scan
-} from "../Utils";
+import { scan } from "../Utils";
+import { LiteralExpressionContext } from "../parser/src/RustParser";
 
 let instructions: Instruction[] = [];
 let wc = 0;
@@ -16,11 +14,17 @@ let wc = 0;
 export class Compiler {
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
-            return {
-                tag: "Terminal",
-                val: node.getText(),
-                // sym: node.symbol.type,
-            };
+            if (node.parent instanceof LiteralExpressionContext) {
+                return {
+                    tag: "Terminal",
+                    val: getLiteralVal(node.parent),
+                };
+            } else {
+                return {
+                    tag: "Terminal",
+                    val: node.getText(),
+                };
+            }
         } else if (node instanceof ParserRuleContext) {
             const result: any = {
                 tag: this.getNodeType(node),
@@ -45,7 +49,8 @@ export class Compiler {
             // case "Function_":
             //     // find child that contains the function name
             //     break;
-            case "LetStatement": {// TODO: recheck LetStatement after done with function
+            case "LetStatement": {
+                // TODO: recheck LetStatement after done with function
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
@@ -83,7 +88,8 @@ export class Compiler {
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
-            case "PredicateLoopExpression": { // while loops
+            case "PredicateLoopExpression": {
+                // while loops
                 const loop_start = wc;
 
                 const pred = ast.children[1];
@@ -91,7 +97,6 @@ export class Compiler {
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
-
 
                 const body = ast.children[2];
                 this.compile(body);
@@ -107,9 +112,9 @@ export class Compiler {
             case "BlockExpression": {
                 const body = findNodeByTag(ast, "Statements");
                 const locals = scan(body);
-                instructions[wc++] = { tag: 'ENTER_SCOPE', syms: locals };
+                instructions[wc++] = { tag: "ENTER_SCOPE", syms: locals };
                 this.compileChildren(ast);
-                instructions[wc++] = { tag: 'EXIT_SCOPE' };
+                instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
             default: {
