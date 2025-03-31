@@ -1,6 +1,6 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
-import { CharStream, CommonTokenStream, AbstractParseTreeVisitor } from 'antlr4ng';
+import { CharStream, CommonTokenStream } from 'antlr4ng';
 import { RustParser } from "./parser/src/RustParser";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
