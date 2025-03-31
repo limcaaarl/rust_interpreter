@@ -58,9 +58,3 @@ export function getLiteralVal(node: LiteralExpressionContext) {
 export function getNodeType(node: ParserRuleContext): string {
     return node.constructor.name.replace("Context", "");
 }
-
-export function compileChildren(ast: any): void {
-    if (ast.children && ast.children.length > 0) {
-        ast.children.forEach((child: any) => this.compile(child));
-    }
-}
