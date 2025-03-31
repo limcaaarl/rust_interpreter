@@ -462,6 +462,53 @@ async function runTests() {
         "Function call"
     );
 
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = 3;
+            let z = add(x, y);
+            z
+        }
+
+        fn add(x: i32, y: i32) -> i32 { 
+            return x + y;
+        }`,
+        8,
+        "Function call with variables"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = 3;
+            let z = add(add(x, y), x);
+            z
+        }
+
+        fn add(x: i32, y: i32) -> i32 { 
+            return x + y;
+        }`,
+        13,
+        "Chaining function calls"
+    );
+
+    await runTest(
+        `fn factorial(n: u64) -> u64 {
+            if (n == 0) | (n == 1) {
+                1
+            } else {
+                n * factorial(n - 1)
+            }
+        }
+
+        fn main() {
+            factorial(5)
+        }`,
+        120,
+        "Recursion"
+    );
+
+
     // Print summary
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);
