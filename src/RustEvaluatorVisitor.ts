@@ -162,10 +162,22 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implemen
             return left * right;
         } else if (ctx.SLASH()) {
             return left / right;
+        } else if (ctx.PERCENT()) {
+            return left % right;
         } else if (ctx.PLUS()) {
             return left + right;
         } else if (ctx.MINUS()) {
             return left - right;
+        } else if (ctx.shl()) {
+            return left << right;
+        } else if (ctx.shr()) {
+            return left >> right;
+        } else if (ctx.AND()) {
+            return left & right;
+        } else if (ctx.CARET()) {
+            return left ^ right;
+        } else if (ctx.OR()) {
+            return left | right;
         }
         throw new Error(`Unsupported arithmetic operator: ${ctx.getText()}`);
     }
@@ -213,6 +225,7 @@ export class RustEvaluatorVisitor extends AbstractParseTreeVisitor<any> implemen
     visitReturnExpression(ctx: ReturnExpressionContext): any {
         return this.visitExpression(ctx.expression());
     }
+    
     visitCallExpression(ctx: CallExpressionContext): any {
         const functionName = ctx.expression().getText();
         const closure = this.visitExpression(ctx.expression());
