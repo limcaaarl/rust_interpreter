@@ -40,7 +40,7 @@ export class RustEvaluator extends BasicEvaluator {
             // Uncomment the following line to evaluate using RustEvaluatorVisitor
             // const result = this.visitor.visit(tree);
             
-            // Uncomment the following line to evaluate using VirtualMachine
+            // Uncomment the following lines to evaluate using VirtualMachine
             const vm = new VirtualMachine(instructions);
             const result = vm.run();
             
