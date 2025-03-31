@@ -3,6 +3,7 @@ import {
     findNodeByTag,
     extractTerminalValue,
     getLiteralVal,
+    getNodeType,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -27,7 +28,7 @@ export class Compiler {
             }
         } else if (node instanceof ParserRuleContext) {
             const result: any = {
-                tag: this.getNodeType(node),
+                tag: getNodeType(node),
                 children: [],
             };
             for (let i = 0; i < node.getChildCount(); i++) {
@@ -38,9 +39,6 @@ export class Compiler {
         return null;
     }
 
-    private getNodeType(node: ParserRuleContext): string {
-        return node.constructor.name.replace("Context", "");
-    }
 
     private compile(ast: any): void {
         // console.log("Tag: " + ast.tag);

@@ -1,4 +1,4 @@
-import { ParseTree } from "antlr4ng";
+import { ParserRuleContext, ParseTree } from "antlr4ng";
 import { Instruction } from "./Instruction";
 import { LiteralExpressionContext } from "../parser/src/RustParser";
 
@@ -53,4 +53,8 @@ export function getLiteralVal(node: LiteralExpressionContext) {
     } else if (node.STRING_LITERAL()) {
         return JSON.parse(node.getText());
     }
+}
+
+export function getNodeType(node: ParserRuleContext): string {
+    return node.constructor.name.replace("Context", "");
 }
