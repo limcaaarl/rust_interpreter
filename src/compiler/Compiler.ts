@@ -4,6 +4,7 @@ import {
     extractTerminalValue,
     getLiteralVal,
     getNodeType,
+    compileChildren,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -38,7 +39,6 @@ export class Compiler {
         }
         return null;
     }
-
 
     private compile(ast: any): void {
         // console.log("Tag: " + ast.tag);
@@ -111,7 +111,7 @@ export class Compiler {
                 const body = findNodeByTag(ast, "Statements");
                 const locals = scan(body);
                 instructions[wc++] = { tag: "ENTER_SCOPE", syms: locals };
-                this.compileChildren(ast);
+                compileChildren(ast);
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
@@ -153,7 +153,7 @@ export class Compiler {
             }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
-                this.compileChildren(ast);
+                compileChildren(ast);
                 break;
             }
         }
@@ -167,9 +167,5 @@ export class Compiler {
         return instructions;
     }
 
-    private compileChildren(ast: any): void {
-        if (ast.children && ast.children.length > 0) {
-            ast.children.forEach((child: any) => this.compile(child));
-        }
-    }
+
 }
