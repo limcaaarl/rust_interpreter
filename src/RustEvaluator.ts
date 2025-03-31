@@ -36,7 +36,6 @@ export class RustEvaluator extends BasicEvaluator {
             const astJson = this.compiler.astToJson(tree);
             console.log(JSON.stringify(astJson, null, 2));
             const instructions = this.compiler.compileProgram(astJson);
-            // displayInstructions(instructions);
 
             // Uncomment the following line to evaluate using RustEvaluatorVisitor
             // const result = this.visitor.visit(tree);
