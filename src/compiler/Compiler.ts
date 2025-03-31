@@ -128,6 +128,13 @@ export class Compiler {
                 instructions[wc++] = { tag: "UNOP", sym: unop };
                 break;
             }
+            case "ExpressionStatement": {
+                this.compile(ast.children[0]);
+                if (ast.children[1] && extractTerminalValue(ast.children[1]) === ";") {
+                    instructions[wc++] = { tag: "POP" };
+                }
+                break;
+            }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
                 this.compileChildren(ast);
