@@ -7,7 +7,10 @@ export default {
     input: "src/index.ts",
     output: {
         plugins: [
-            terser({ compress: { negate_iife: false } })
+            terser({ 
+                compress: { negate_iife: false },
+                mangle: false
+            })
         ],
         dir: "dist",
         format: "iife",
