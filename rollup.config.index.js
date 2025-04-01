@@ -7,7 +7,7 @@ export default {
     input: "src/index.ts",
     output: {
         plugins: [
-            terser({ 
+            terser({
                 compress: { negate_iife: false },
                 mangle: false
             })
@@ -15,10 +15,5 @@ export default {
         dir: "dist",
         format: "iife",
         sourcemap: true,
-    },
-    watch: {
-        include: "src/**",
-        exclude: 'node_modules/**',
-        clearScreen: true,
     }
 }
