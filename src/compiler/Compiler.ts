@@ -4,6 +4,8 @@ import {
     extractTerminalValue,
     getLiteralVal,
     getNodeType,
+    getFunctionParams,
+    getReturnType,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -11,6 +13,7 @@ import { LiteralExpressionContext } from "../parser/src/RustParser";
 
 let instructions: Instruction[] = [];
 let wc = 0;
+let mainAddr = -1;
 
 export class Compiler {
     public astToJson(node: ParseTree): any {
@@ -39,14 +42,9 @@ export class Compiler {
         return null;
     }
 
-
     private compile(ast: any): void {
         // console.log("Tag: " + ast.tag);
         switch (ast.tag) {
-            // TODO: function implementation
-            // case "Function_":
-            //     // find child that contains the function name
-            //     break;
             case "LetStatement": {
                 // TODO: recheck LetStatement after done with function
                 const letNameNode = findNodeByTag(ast, "Identifier");
@@ -79,6 +77,30 @@ export class Compiler {
                 instructions[wc++] = { tag: "LD", sym: symVal };
                 break;
             }
+            case "CallExpression":
+                this.compileChildren(ast);
+                const callParamsNode = findNodeByTag(ast, "CallParams");
+                instructions[wc++] = {tag: 'CALL', arity: callParamsNode.children.length}
+                break
+            case "Function_":
+                const funcName = extractTerminalValue(findNodeByTag(ast, "Identifier"));
+                if (funcName == "main") mainAddr = wc;
+                
+                instructions[wc++] = {
+                    tag: "LDF",
+                    prms: getFunctionParams(ast),
+                    retType: getReturnType(ast),
+                    addr: wc + 1,
+                };
+                const goto_wc = wc++;
+                instructions[goto_wc] = { tag: "GOTO", addr: -1 };
+                this.compile(findNodeByTag(ast, "BlockExpression"));
+                // returns `()` implicitly for functions that do not return any value
+                instructions[wc++] = { tag: "LDC", val: "()" }; 
+                instructions[wc++] = { tag: "RESET" };
+                instructions[goto_wc].addr = wc;
+                instructions[wc++] = {tag: 'ASSIGN', sym: funcName}
+                break;
             case "ComparisonExpression": {
                 this.compile(ast.children[0]); // left
                 this.compile(ast.children[2]); // right
@@ -125,11 +147,11 @@ export class Compiler {
                 const cons = ast.children[2];
                 this.compile(cons);
 
-                const goto_wc = wc++; 
-                instructions[goto_wc] = { tag: 'GOTO', addr: -1  };
-                
+                const goto_wc = wc++;
+                instructions[goto_wc] = { tag: "GOTO", addr: -1 };
+
                 const altExists = ast.children.length > 4;
-                if(altExists) {
+                if (altExists) {
                     const alternative_address = wc;
                     instructions[jof_wc].addr = alternative_address;
                     const cons = ast.children[4];
@@ -170,6 +192,11 @@ export class Compiler {
         wc = 0;
         instructions = [];
         this.compile(ast);
+        // call main function
+        if (mainAddr != -1) {
+            instructions[wc++] = { tag: "LD", sym: "main" }; 
+            instructions[wc++] = { tag: "CALL", arity: 0 }; 
+        }
         instructions[wc++] = { tag: "DONE" };
         return instructions;
     }

@@ -1,7 +1,7 @@
 export type Instruction =
     | { tag: "LDC"; val: any }
     | { tag: "LD"; sym: string }
-    | { tag: "LDF"; prms: any; addr: number }
+    | { tag: "LDF"; prms: any; retType: string; addr: number }
     | { tag: "ASSIGN"; sym: string }
     | { tag: "ASSIGN_CONST"; sym: string; type: string }
     | { tag: "ASSIGN_STATIC"; sym: string; type: string }

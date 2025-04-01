@@ -58,3 +58,37 @@ export function getLiteralVal(node: LiteralExpressionContext) {
 export function getNodeType(node: ParserRuleContext): string {
     return node.constructor.name.replace("Context", "");
 }
+
+export interface FunctionParam {
+    name: string;
+    type: string;
+}
+
+export function getReturnType(ast: any): string {
+    const returnNode = findNodeByTag(ast, "FunctionReturnType");
+    if (!returnNode) return "";
+    const typeNode = findNodeByTag(returnNode, "Type_");
+    
+    return typeNode ? extractTerminalValue(typeNode) : "";
+}
+
+export function getFunctionParams(ast: any): FunctionParam[] {
+    const params: FunctionParam[] = [];
+    const paramsNode = findNodeByTag(ast, "FunctionParameters");
+    if (!paramsNode || !paramsNode.children) return params;
+    
+    for (const child of paramsNode.children) {
+        if (child.tag !== "FunctionParam") continue;
+        
+        const identifierNode = findNodeByTag(child, "Identifier");
+        const typeNode = findNodeByTag(child, "Type_");
+        
+        if (identifierNode && typeNode) {
+            const name = extractTerminalValue(identifierNode);
+            const typeStr = extractType(typeNode);
+            params.push({ name, type: typeStr });
+        }
+    }
+    
+    return params;
+}
