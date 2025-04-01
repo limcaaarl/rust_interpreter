@@ -46,8 +46,9 @@ export class RustEvaluator extends BasicEvaluator {
             
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
+            console.log(result);
 
-            // return result;
+            return result;
         } catch (error) {
             // Handle errors and send them to the REPL
             if (error instanceof Error) {
@@ -55,7 +56,7 @@ export class RustEvaluator extends BasicEvaluator {
             } else {
                 this.conductor.sendOutput(`Error: ${String(error)}`);
             }
-            // throw error
+            throw error
         }
     }
 }
