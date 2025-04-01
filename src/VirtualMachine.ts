@@ -76,6 +76,14 @@ export class VirtualMachine {
                 this.OS.push(result);
                 break;
             }
+            case "JOF": {
+                this.PC = this.OS.pop() ? this.PC + 1 : instr.addr;
+                break;
+            }
+            case "GOTO": {
+                this.PC = instr.addr;
+                break;
+            }
             default:
                 throw new Error("Unknown instruction tag: " + instr.tag);
         }
