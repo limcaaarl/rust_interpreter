@@ -52,8 +52,8 @@ export class Compiler {
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
-                const letLiteralNode = findNodeByTag(ast, "LiteralExpression_");
-                this.compile(letLiteralNode);
+                // Compile the right hand side of the '='
+                this.compile(ast.children[3]);
 
                 instructions[wc++] = {
                     tag: "ASSIGN",
