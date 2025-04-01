@@ -34,7 +34,7 @@ export class RustEvaluator extends BasicEvaluator {
 
             // TODO: Implement VM stuff here
             const astJson = this.compiler.astToJson(tree);
-            console.log(JSON.stringify(astJson, null, 2));
+            // console.log(JSON.stringify(astJson, null, 2));
             const instructions = this.compiler.compileProgram(astJson);
 
             // Uncomment the following line to evaluate using RustEvaluatorVisitor
@@ -47,7 +47,7 @@ export class RustEvaluator extends BasicEvaluator {
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
 
-            return result;
+            // return result;
         } catch (error) {
             // Handle errors and send them to the REPL
             if (error instanceof Error) {
@@ -55,7 +55,7 @@ export class RustEvaluator extends BasicEvaluator {
             } else {
                 this.conductor.sendOutput(`Error: ${String(error)}`);
             }
-            throw error
+            // throw error
         }
     }
 }
