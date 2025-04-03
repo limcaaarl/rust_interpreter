@@ -84,6 +84,41 @@ export class VirtualMachine {
                 this.PC = instr.addr;
                 break;
             }
+            case "LDF": {
+                this.PC++;
+                this.OS.push({
+                    tag: "CLOSURE",
+                    prms: instr.prms,
+                    addr: instr.addr,
+                    env: this.E,
+                });
+                break;
+            }
+            case "CALL": {
+                const arity = instr.arity
+                let args = []
+                for (let i = arity - 1; i >= 0; i--)
+                    args[i] = this.OS.pop()
+                const sf = this.OS.pop()
+                // TODO: Implement builtin functions
+                // if (sf.tag === 'BUILTIN') {
+                //     this.PC++
+                //     return this.OS.push(apply_builtin(sf.sym, args))
+                // }
+                const params = sf.prms.map(param => param.name);
+                this.RTS.push({tag: 'CALL_FRAME', addr: this.PC + 1, env: this.E})
+                this.E = extend(params, args, sf.env)
+                this.PC = sf.addr
+                break;
+            }
+            case "RESET": {
+                const top_frame = this.RTS.pop()
+                if (top_frame.tag === 'CALL_FRAME') {
+                    this.PC = top_frame.addr
+                    this.E = top_frame.env
+                }
+                break;
+            }
             default:
                 throw new Error("Unknown instruction tag: " + instr.tag);
         }
