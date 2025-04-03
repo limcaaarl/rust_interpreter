@@ -43,10 +43,9 @@ export class Compiler {
     }
 
     private compile(ast: any): void {
-        // console.log("Tag: " + ast.tag);
+        console.log(ast.tag);
         switch (ast.tag) {
             case "LetStatement": {
-                // TODO: recheck LetStatement after done with function
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
@@ -58,8 +57,11 @@ export class Compiler {
                     sym: letName,
                 };
 
+                // TODO: This POP seems to be causing some issues for let statements inside functions.
+                //       Popping the values breaks the evaluation. Will comment it for now
+
                 // Clear the assigned value from OS
-                instructions[wc++] = { tag: "POP" };
+                // instructions[wc++] = { tag: "POP" };
                 break;
             }
             case "LiteralExpression": {
@@ -80,8 +82,11 @@ export class Compiler {
             case "CallExpression":
                 this.compileChildren(ast);
                 const callParamsNode = findNodeByTag(ast, "CallParams");
-                instructions[wc++] = {tag: 'CALL', arity: callParamsNode.children.length}
-                break
+                instructions[wc++] = {
+                    tag: "CALL",
+                    arity: Math.floor(callParamsNode.children.length / 2) + 1,
+                };
+                break;
             case "Function_":
                 const funcName = extractTerminalValue(findNodeByTag(ast, "Identifier"));
                 if (funcName == "main") mainAddr = wc;
@@ -95,11 +100,22 @@ export class Compiler {
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
                 this.compile(findNodeByTag(ast, "BlockExpression"));
-                // returns `()` implicitly for functions that do not return any value
-                instructions[wc++] = { tag: "LDC", val: "()" }; 
+                // TODO: Not sure if we want to return () implicitly as this would result in main evaluating to '()'
+                // Rust returns `()` implicitly for functions that do not return any value
+                // instructions[wc++] = { tag: "LDC", val: "()" };
                 instructions[wc++] = { tag: "RESET" };
                 instructions[goto_wc].addr = wc;
-                instructions[wc++] = {tag: 'ASSIGN', sym: funcName}
+                instructions[wc++] = { tag: "ASSIGN", sym: funcName };
+                instructions[wc++] = { tag: "POP" };
+                break;
+            case "ReturnExpression":
+                // Tail call not supported yet
+
+                // compile the rest of the expression
+                for (let i = 1; i < ast.children.length; i++) {
+                    this.compile(ast.children[i]);
+                }
+                instructions[wc++] = { tag: "RESET" };
                 break;
             case "ComparisonExpression": {
                 this.compile(ast.children[0]); // left
@@ -127,6 +143,18 @@ export class Compiler {
                     addr: loop_start,
                 };
                 instructions[jof_wc].addr = wc;
+                break;
+            }
+            case "Crate": {
+                const locals = scan(ast);
+                instructions[wc++] = { tag: "ENTER_SCOPE", syms: locals };
+                this.compileChildren(ast);
+                // call main function
+                if (mainAddr != -1) {
+                    instructions[wc++] = { tag: "LD", sym: "main" };
+                    instructions[wc++] = { tag: "CALL", arity: 0 };
+                }
+                instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
             case "BlockExpression": {
@@ -192,11 +220,6 @@ export class Compiler {
         wc = 0;
         instructions = [];
         this.compile(ast);
-        // call main function
-        if (mainAddr != -1) {
-            instructions[wc++] = { tag: "LD", sym: "main" }; 
-            instructions[wc++] = { tag: "CALL", arity: 0 }; 
-        }
         instructions[wc++] = { tag: "DONE" };
         return instructions;
     }
