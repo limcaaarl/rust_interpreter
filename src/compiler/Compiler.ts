@@ -61,7 +61,7 @@ export class Compiler {
                 //       Popping the values breaks the evaluation. Will comment it for now
 
                 // Clear the assigned value from OS
-                // instructions[wc++] = { tag: "POP" };
+                instructions[wc++] = { tag: "POP" };
                 break;
             }
             case "LiteralExpression": {
@@ -79,7 +79,7 @@ export class Compiler {
                 instructions[wc++] = { tag: "LD", sym: symVal };
                 break;
             }
-            case "CallExpression":
+            case "CallExpression": {
                 this.compileChildren(ast);
                 const callParamsNode = findNodeByTag(ast, "CallParams");
                 instructions[wc++] = {
@@ -87,7 +87,8 @@ export class Compiler {
                     arity: Math.floor(callParamsNode.children.length / 2) + 1,
                 };
                 break;
-            case "Function_":
+            }
+            case "Function_": {
                 const funcName = extractTerminalValue(findNodeByTag(ast, "Identifier"));
                 if (funcName == "main") mainAddr = wc;
                 
@@ -108,7 +109,8 @@ export class Compiler {
                 instructions[wc++] = { tag: "ASSIGN", sym: funcName };
                 instructions[wc++] = { tag: "POP" };
                 break;
-            case "ReturnExpression":
+            }
+            case "ReturnExpression": {
                 // Tail call not supported yet
 
                 // compile the rest of the expression
@@ -117,6 +119,14 @@ export class Compiler {
                 }
                 instructions[wc++] = { tag: "RESET" };
                 break;
+            }
+            case "LazyBooleanExpression": {
+                this.compile(ast.children[0]); // left
+                this.compile(ast.children[2]); // right
+                const binop = extractTerminalValue(ast.children[1]);
+                instructions[wc++] = { tag: "BINOP", sym: binop };
+                break;
+            }
             case "ComparisonExpression": {
                 this.compile(ast.children[0]); // left
                 this.compile(ast.children[2]); // right
