@@ -2,6 +2,9 @@ import { initialise } from "conductor/src/conductor/runner/util";
 import { RustEvaluator } from "./RustEvaluator";
 import { ILink } from "conductor/src/conduit";
 import { exit } from "process";
+import { BOOL_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./typechecker/Types";
+import { TypeChecker } from "./typechecker/TypeChecker";
+import { generateJsonAst } from "./Utils";
 
 // Create a custom link object implementing ILink interface for Node.js environment
 const customLink: ILink = {
@@ -25,16 +28,16 @@ const { runnerPlugin, conduit } = initialise(RustEvaluator, customLink);
  * @param expected - The expected result
  * @param testName - Optional name for the test
  */
-async function testRust(code: string, expected: any, testName?: string, expectError: boolean = false) {
+async function testRust(code: string, expected: any, testName: string, expectError: boolean = false) {
     const evaluator = new RustEvaluator(runnerPlugin);
 
     try {
         const result = await evaluator.evaluateChunk(code);
         if (result === expected) {
-            console.log(`✅ Test: ${testName || 'passed'}`);
+            console.log(`✅ Test: ${testName}`);
             return true;
         } else {
-            console.error(`❌ Test: ${testName || 'failed'} - Mismatched results:`);
+            console.error(`❌ Test: ${testName} - Mismatched results`);
             console.error(`Code:\n${code}\n`);
             console.error(`Expected: ${expected}`);
             console.error(`Actual: ${result}`);
@@ -43,14 +46,39 @@ async function testRust(code: string, expected: any, testName?: string, expectEr
     } catch (error) {
         if (expectError) {
             if (error.toString().includes(expected)) {
-                console.log(`✅ Test: ${testName || 'passed'}`);
+                console.log(`✅ Test: ${testName}`);
                 return true;
             }
         }
-        console.error(`❌ Test: ${testName || 'failed'} - Error occurred:`);
+        console.error(`❌ Test: ${testName} - Error occurred`);
         console.error(`Code:\n${code}\n`);
         console.error(`Expected: ${expected}`);
         console.error(`Actual: ${error}`);
+        return false;
+    }
+}
+
+function testTypeChecker(code: string, expected: RustType, testName: string) {
+    const typeChecker = new TypeChecker();
+    const jsonAst = generateJsonAst(code);
+
+    try {
+        const result = typeChecker.checkNode(jsonAst);
+        if (result === expected) {
+            console.log(`✅ Test: ${testName}`);
+            return true;
+        } else {
+            console.error(`❌ Test: ${testName} - Mismatched results`);
+            console.error(`Code:\n${code}\n`);
+            console.error(`Expected: ${JSON.stringify(expected)}`);
+            console.error(`Actual: ${JSON.stringify(result)}`);
+            return false;
+        }
+    } catch (error) {
+        console.error(`❌ Test: ${testName} - Error occurred`);
+        console.error(`Code:\n${code}\n`);
+        console.error(`Expected: ${JSON.stringify(expected)}`);
+        console.error(`Actual: ${JSON.stringify(error)}`);
         return false;
     }
 }
@@ -60,8 +88,17 @@ async function runTests() {
     let testsFailed = 0;
 
     // Helper function to run a test and update counters
-    const runTest = async (code: string, expected: any, testName: string, expectError: boolean = false) => {
+    async function runTest(code: string, expected: any, testName: string, expectError: boolean = false) {
         const result = await testRust(code, expected, testName, expectError);
+        if (result) {
+            testsPassed++;
+        } else {
+            testsFailed++;
+        }
+    };
+
+    function runTypeCheckerTest(code: string, expected: RustType, testName: string) {
+        const result = testTypeChecker(code, expected, testName);
         if (result) {
             testsPassed++;
         } else {
@@ -536,6 +573,117 @@ async function runTests() {
         "Negation unary operator (boolean)"
     );
 
+    runTypeCheckerTest(
+        `fn main() {
+            1
+        }
+    `,
+        I32_TYPE,
+        "Integer type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            1.9
+        }
+    `,
+        F32_TYPE,
+        "Float type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            true
+        }
+    `,
+        BOOL_TYPE,
+        "Boolean type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            "hello"
+        }
+    `,
+        STR_TYPE,
+        "String type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            1 + 3
+        }
+    `,
+        I32_TYPE,
+        "Arithmetic type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            1;
+            2;
+            3.5
+        }
+    `,
+        F32_TYPE,
+        "Last expression type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            if (true) {
+                1
+            } else {
+                2.5
+            }
+        }
+    `,
+        I32_TYPE,
+        "If-else statement type (true)"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            if (false) {
+                1
+            } else {
+                2.5
+            }
+        }
+    `,
+        F32_TYPE,
+        "If-else statement type (false)"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 1;
+        }
+    `,
+        UNIT_TYPE,
+        "Variable declaration type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 1;
+            x
+        }
+    `,
+        I32_TYPE,
+        "Variable usage type"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            {
+                1
+            }
+        }
+    `,
+        I32_TYPE,
+        "Nested block type"
+    );
 
     // Print summary
     const totalTests = testsPassed + testsFailed;

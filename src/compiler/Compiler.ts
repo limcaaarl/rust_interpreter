@@ -10,12 +10,15 @@ import {
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
 import { LiteralExpressionContext } from "../parser/src/RustParser";
+import { TypeChecker } from "../typechecker/TypeChecker";
 
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
 
 export class Compiler {
+    private typeChecker: TypeChecker = new TypeChecker();
+
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
             if (node.parent instanceof LiteralExpressionContext) {
@@ -43,7 +46,7 @@ export class Compiler {
     }
 
     private compile(ast: any): void {
-        console.log(ast.tag);
+        // console.log(ast.tag);
         switch (ast.tag) {
             case "LetStatement": {
                 const letNameNode = findNodeByTag(ast, "Identifier");
@@ -91,7 +94,7 @@ export class Compiler {
             case "Function_": {
                 const funcName = extractTerminalValue(findNodeByTag(ast, "Identifier"));
                 if (funcName == "main") mainAddr = wc;
-                
+
                 instructions[wc++] = {
                     tag: "LDF",
                     prms: getFunctionParams(ast),
@@ -226,7 +229,22 @@ export class Compiler {
         }
     }
 
+    private typeCheck(ast: any): boolean {
+        const valid = this.typeChecker.check(ast);
+        // if (!valid) {
+        //     const errors = this.typeChecker.getErrors();
+        //     console.error('Type checking errors:');
+        //     errors.forEach(err => console.error(`- ${err}`));
+        // }
+        return valid;
+    }
+
     public compileProgram(ast: any): Instruction[] {
+        const valid = this.typeCheck(ast);
+        if (!valid) {
+            throw new Error('Type checking failed: ' + this.typeChecker.getErrors());
+        }
+
         wc = 0;
         instructions = [];
         this.compile(ast);

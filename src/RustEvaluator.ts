@@ -31,22 +31,23 @@ export class RustEvaluator extends BasicEvaluator {
 
             // Parse the input
             const tree = parser.crate();
-
-            // TODO: Implement VM stuff here
             const astJson = this.compiler.astToJson(tree);
+            
+            // console.log(tree.toStringTree(parser));
+            
             // console.log(JSON.stringify(astJson, null, 2));
-            const instructions = this.compiler.compileProgram(astJson);
-
+            
             // Uncomment the following line to evaluate using RustEvaluatorVisitor
             // const result = this.visitor.visit(tree);
             
             // Uncomment the following lines to evaluate using VirtualMachine
+            const instructions = this.compiler.compileProgram(astJson);
             const vm = new VirtualMachine(instructions);
             const result = vm.run();
             
             // Send the result to the REPL
             this.conductor.sendOutput(`Result: ${result}`);
-            console.log(result);
+            // console.log(result);
 
             return result;
         } catch (error) {

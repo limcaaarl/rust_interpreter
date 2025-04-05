@@ -1,5 +1,10 @@
 import { isBooleanObject } from "util/types";
 import { findNodeByTag } from "./compiler/CompilerHelper";
+import { CharStream, CommonTokenStream } from "antlr4ng";
+import { RustLexer } from "./parser/src/RustLexer";
+import { RustParser } from "./parser/src/RustParser";
+import { VirtualMachine } from "./VirtualMachine";
+import { Compiler } from "./compiler/Compiler";
 
 export class Pair {
     constructor(public head: any, public tail: any) { }
@@ -128,4 +133,46 @@ export function apply_unop(op: string, v: any): any {
             : error('! expects boolean, found: ' + x)
     };
     return unop_microcode[op](v);
+}
+
+export function generateJsonAst(code: string) {
+    // Create the lexer and parser
+    const inputStream = CharStream.fromString(code);
+    const lexer = new RustLexer(inputStream);
+    const tokenStream = new CommonTokenStream(lexer);
+    const parser = new RustParser(tokenStream);
+    const compiler = new Compiler();
+
+    // Parse the input
+    const tree = parser.crate();
+    const astJson = compiler.astToJson(tree);
+
+    return astJson
+}
+
+/** Given a crate node, return the main function node */
+export function getMainFunction(crateNode: any) {
+    function traverse(node: any): any {
+        if (node.tag === "Function_") {
+            // Check if the function name is "main"
+            const identifierNode = node.children?.find(child => child.tag === "Identifier");
+            const mainIdentifier = identifierNode?.children?.find(child => child.val === "main");
+            if (mainIdentifier) {
+                return node; // Return the "main" function node
+            }
+        }
+
+        // Recursively traverse children
+        if (node.children) {
+            for (const child of node.children) {
+                const result = traverse(child);
+                if (result) {
+                    return result;
+                }
+            }
+        }
+        return null; // Return null if no "main" function is found
+    }
+
+    return traverse(crateNode);
 }
