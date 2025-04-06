@@ -133,22 +133,27 @@ export class TypeChecker {
 
         // Find type annotation if exists
         let declaredType: RustType | null = null;
+        let inferredType: RustType;
         const typeNode = findNodeByTag(node, 'Type_');
+
+        // If type annotation exists, check type compatibility
         if (typeNode) {
             const typeStr = extractTerminalValue(typeNode);
             declaredType = this.parseTypeString(typeStr);
-        }
 
-        // Check expression type (right of '=')
-        let initType = this.checkNode(node.children[5]);
+            // Check expression type (right of '=')
+            inferredType = this.checkNode(node.children[5]);
 
-        // Verify type if explicitly declared
-        if (declaredType && !this.typesMatch(initType, declaredType)) {
-            this.errors.push(`Cannot assign value of type ${this.typeToString(initType)} to variable ${name} of type ${this.typeToString(declaredType)}`);
+            // Verify type if explicitly declared
+            if (declaredType && !this.typesMatch(inferredType, declaredType)) {
+                this.errors.push(`Cannot assign value of type ${this.typeToString(inferredType)} to variable ${name} of type ${this.typeToString(declaredType)}`);
+            }
+        } else { // If there is no type annotation
+            inferredType = this.checkNode(node.children[3]);
         }
 
         // Use either declared type or inferred type
-        const finalType = declaredType || initType;
+        const finalType = declaredType || inferredType;
         this.env.define(name, finalType);
 
         return UNIT_TYPE;
