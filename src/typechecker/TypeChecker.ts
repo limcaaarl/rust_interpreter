@@ -53,6 +53,8 @@ export class TypeChecker {
                 return this.checkNegationExpression(node);
             case 'ExpressionStatement':
                 return this.checkExpressionStatement(node);
+            case 'GroupedExpression':
+                return this.checkGroupedExpression(node);
             default:
                 return this.checkChildren(node);
         }
@@ -527,5 +529,9 @@ export class TypeChecker {
         }
 
         return type1; // Default to first type
+    }
+
+    private checkGroupedExpression(node: any): RustType {
+        return this.checkNode(node.children[1]);
     }
 }
