@@ -180,7 +180,7 @@ export class TypeChecker {
         const varType = this.env.lookup(symVal);
 
         if (!varType) {
-            this.errors.push(`Variable ${symVal} is not defined`);
+            this.errors.push(`unassigned name: ${symVal}`);
             return UNIT_TYPE;
         }
 
