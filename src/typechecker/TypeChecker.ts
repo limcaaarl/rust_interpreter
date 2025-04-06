@@ -166,8 +166,6 @@ export class TypeChecker {
         }
 
         const term = node.children[0];
-        if (!term.val) return UNIT_TYPE;
-
         // Infer the type from the literal value
         if (typeof term.val === 'number') {
             // Determine if it's an integer or float
