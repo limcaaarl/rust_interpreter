@@ -185,7 +185,7 @@ export class TypeChecker {
         const varType = this.env.lookup(symVal);
 
         if (!varType) {
-            this.errors.push(`unassigned name: ${symVal}`);
+            this.errors.push(`Unassigned name: ${symVal}`);
             return UNIT_TYPE;
         }
 

@@ -156,7 +156,7 @@ async function runTests() {
             }
             x;
         }`,
-        "unassigned name: x",
+        "Unassigned name: x",
         "Block scope isolation",
         true
     );
@@ -191,7 +191,7 @@ async function runTests() {
                 let x = 1;
             }
         }`,
-        "unassigned name: x",
+        "Unassigned name: x",
         "Block with variable declaration after use",
         true
     );
