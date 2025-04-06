@@ -684,6 +684,20 @@ async function runTests() {
         I32_TYPE,
         "Nested block type"
     );
+    
+    await runTest(
+        `fn main() {
+            if true {
+                1
+            } else {
+                "hi"
+            }
+        }
+    `,
+        "Mismatched types",
+        "If statement branches with different type",
+        true
+    );
 
     // Print summary
     const totalTests = testsPassed + testsFailed;
