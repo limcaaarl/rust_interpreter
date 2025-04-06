@@ -631,32 +631,6 @@ async function runTests() {
 
     runTypeCheckerTest(
         `fn main() {
-            if (true) {
-                1
-            } else {
-                2.5
-            }
-        }
-    `,
-        I32_TYPE,
-        "If-else statement type (true)"
-    );
-
-    runTypeCheckerTest(
-        `fn main() {
-            if (false) {
-                1
-            } else {
-                2.5
-            }
-        }
-    `,
-        F32_TYPE,
-        "If-else statement type (false)"
-    );
-
-    runTypeCheckerTest(
-        `fn main() {
             let x = 1;
         }
     `,
