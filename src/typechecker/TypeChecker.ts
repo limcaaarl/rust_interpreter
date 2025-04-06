@@ -193,11 +193,16 @@ export class TypeChecker {
     private checkBlock(node: any): RustType {
         this.env.enterScope();
 
-        const statementsNode = findNodeByTag(node, 'Statements');
-        const result = this.checkChildren(statementsNode);
-
-        this.env.exitScope();
-        return result;
+        try {
+            const statementsNode = findNodeByTag(node, 'Statements');
+            if (statementsNode) {
+                return this.checkChildren(statementsNode);
+            } else {
+                return UNIT_TYPE;
+            }
+        } finally {
+            this.env.exitScope();
+        }
     }
 
     // Check return expressions
