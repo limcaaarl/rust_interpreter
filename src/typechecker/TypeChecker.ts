@@ -76,6 +76,15 @@ export class TypeChecker {
     // Crate is the root node, corresponds to a full program
     // Its type is the type of the main function
     private checkCrate(node: any): RustType {
+        // TODO: Check all the function declarations and add them to env
+        const locals = scan(node); // TODO: make a new scanTypes() that returns (name, type)? 
+        for (const local of locals) {
+            this.checkNode(local);
+        }
+
+        // TODO: replace this since we should have already checked the type 
+        // of main function in the previous step, can just lookup the TypeEnvironment
+        // Check main function
         const mainFunction = getMainFunction(node);
         if (!mainFunction) {
             this.errors.push('No main function found');
