@@ -92,3 +92,27 @@ export function getFunctionParams(ast: any): FunctionParam[] {
     
     return params;
 }
+
+export function compile_time_environment_position(env, x) {
+    let frame_index = env.length - 1; // start at the last frame
+    while (frame_index >= 0) {
+        const idx = value_index(env[frame_index], x);
+        if (idx !== -1) {
+            return [frame_index, idx];
+        }
+        frame_index--;
+    }
+}
+
+export function value_index(frame, x) {
+    for (let i = 0; i < frame.length; i++) {
+        if (frame[i] === x) return i;
+    }
+    return -1;
+}
+
+export function compile_time_environment_extend (vs, e) {
+    const newEnv = [...e];
+    newEnv.push(vs);
+    return newEnv;
+}
