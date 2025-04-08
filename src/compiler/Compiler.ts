@@ -6,6 +6,8 @@ import {
     getNodeType,
     getFunctionParams,
     getReturnType,
+    compile_time_environment_position,
+    compile_time_environment_extend,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -14,6 +16,10 @@ import { LiteralExpressionContext } from "../parser/src/RustParser";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
+let primitive_object = {}
+let builtin_array = []
+let global_compile_frame = Object.keys(primitive_object)
+let global_compile_environment = [global_compile_frame]
 
 export class Compiler {
     public astToJson(node: ParseTree): any {
@@ -42,7 +48,7 @@ export class Compiler {
         return null;
     }
 
-    private compile(ast: any): void {
+    private compile(ast: any, ce: any): void {
         console.log(ast.tag);
         switch (ast.tag) {
             case "LetStatement": {
@@ -50,15 +56,12 @@ export class Compiler {
                 const letName = extractTerminalValue(letNameNode);
 
                 // Compile the right hand side of the '='
-                this.compile(ast.children[3]);
+                this.compile(ast.children[3], ce);
 
                 instructions[wc++] = {
                     tag: "ASSIGN",
-                    sym: letName,
+                    pos: compile_time_environment_position(ce, letName),
                 };
-
-                // TODO: This POP seems to be causing some issues for let statements inside functions.
-                //       Popping the values breaks the evaluation. Will comment it for now
 
                 // Clear the assigned value from OS
                 instructions[wc++] = { tag: "POP" };
@@ -76,11 +79,15 @@ export class Compiler {
             }
             case "PathExpression_": {
                 const symVal = extractTerminalValue(ast);
-                instructions[wc++] = { tag: "LD", sym: symVal };
+                instructions[wc++] = {
+                    tag: "LD",
+                    sym: symVal,
+                    pos: compile_time_environment_position(ce, symVal),
+                };
                 break;
             }
             case "CallExpression": {
-                this.compileChildren(ast);
+                this.compileChildren(ast, ce);
                 const callParamsNode = findNodeByTag(ast, "CallParams");
                 instructions[wc++] = {
                     tag: "CALL",
@@ -89,24 +96,32 @@ export class Compiler {
                 break;
             }
             case "Function_": {
-                const funcName = extractTerminalValue(findNodeByTag(ast, "Identifier"));
+                const funcName = extractTerminalValue(
+                    findNodeByTag(ast, "Identifier")
+                );
                 if (funcName == "main") mainAddr = wc;
-                
+                const funcParams = getFunctionParams(ast);
                 instructions[wc++] = {
                     tag: "LDF",
-                    prms: getFunctionParams(ast),
+                    arity: funcParams.length,
                     retType: getReturnType(ast),
                     addr: wc + 1,
                 };
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
-                this.compile(findNodeByTag(ast, "BlockExpression"));
+                this.compile(
+                    findNodeByTag(ast, "BlockExpression"),
+                    compile_time_environment_extend(funcParams, ce)
+                );
                 // TODO: Not sure if we want to return () implicitly as this would result in main evaluating to '()'
                 // Rust returns `()` implicitly for functions that do not return any value
                 // instructions[wc++] = { tag: "LDC", val: "()" };
                 instructions[wc++] = { tag: "RESET" };
                 instructions[goto_wc].addr = wc;
-                instructions[wc++] = { tag: "ASSIGN", sym: funcName };
+                instructions[wc++] = {
+                    tag: "ASSIGN",
+                    pos: compile_time_environment_position(ce, funcName),
+                };
                 instructions[wc++] = { tag: "POP" };
                 break;
             }
@@ -115,21 +130,21 @@ export class Compiler {
 
                 // compile the rest of the expression
                 for (let i = 1; i < ast.children.length; i++) {
-                    this.compile(ast.children[i]);
+                    this.compile(ast.children[i], ce);
                 }
                 instructions[wc++] = { tag: "RESET" };
                 break;
             }
             case "LazyBooleanExpression": {
-                this.compile(ast.children[0]); // left
-                this.compile(ast.children[2]); // right
+                this.compile(ast.children[0], ce); // left
+                this.compile(ast.children[2], ce); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "ComparisonExpression": {
-                this.compile(ast.children[0]); // left
-                this.compile(ast.children[2]); // right
+                this.compile(ast.children[0], ce); // left
+                this.compile(ast.children[2], ce); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
@@ -139,13 +154,13 @@ export class Compiler {
                 const loop_start = wc;
 
                 const pred = ast.children[1];
-                this.compile(pred);
+                this.compile(pred, ce);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const body = ast.children[2];
-                this.compile(body);
+                this.compile(body, ce);
 
                 instructions[wc++] = { tag: "POP" };
                 instructions[wc++] = {
@@ -157,11 +172,18 @@ export class Compiler {
             }
             case "Crate": {
                 const locals = scan(ast);
-                instructions[wc++] = { tag: "ENTER_SCOPE", syms: locals };
-                this.compileChildren(ast);
+                instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
+                this.compileChildren(
+                    ast,
+                    compile_time_environment_extend(locals, ce)
+                );
                 // call main function
                 if (mainAddr != -1) {
-                    instructions[wc++] = { tag: "LD", sym: "main" };
+                    instructions[wc++] = {
+                        tag: "LD",
+                        sym: "main",
+                        pos: compile_time_environment_position(ce, "main"),
+                    };
                     instructions[wc++] = { tag: "CALL", arity: 0 };
                 }
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
@@ -170,20 +192,23 @@ export class Compiler {
             case "BlockExpression": {
                 const body = findNodeByTag(ast, "Statements");
                 const locals = scan(body);
-                instructions[wc++] = { tag: "ENTER_SCOPE", syms: locals };
-                this.compileChildren(ast);
+                instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
+                this.compileChildren(
+                    ast,
+                    compile_time_environment_extend(locals, ce)
+                );
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
             case "IfExpression": {
                 const pred = ast.children[1];
-                this.compile(pred);
+                this.compile(pred, ce);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const cons = ast.children[2];
-                this.compile(cons);
+                this.compile(cons, ce);
 
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
@@ -193,34 +218,37 @@ export class Compiler {
                     const alternative_address = wc;
                     instructions[jof_wc].addr = alternative_address;
                     const cons = ast.children[4];
-                    this.compile(cons);
+                    this.compile(cons, ce);
                 }
                 instructions[goto_wc].addr = wc;
                 break;
             }
             case "ArithmeticOrLogicalExpression": {
-                this.compile(ast.children[0]); // left
-                this.compile(ast.children[2]); // right
+                this.compile(ast.children[0], ce); // left
+                this.compile(ast.children[2], ce); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "NegationExpression": {
-                this.compile(ast.children[1]);
+                this.compile(ast.children[1], ce);
                 const unop = extractTerminalValue(ast.children[0]);
                 instructions[wc++] = { tag: "UNOP", sym: unop };
                 break;
             }
             case "ExpressionStatement": {
-                this.compile(ast.children[0]);
-                if (ast.children[1] && extractTerminalValue(ast.children[1]) === ";") {
+                this.compile(ast.children[0], ce);
+                if (
+                    ast.children[1] &&
+                    extractTerminalValue(ast.children[1]) === ";"
+                ) {
                     instructions[wc++] = { tag: "POP" };
                 }
                 break;
             }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
-                this.compileChildren(ast);
+                this.compileChildren(ast, ce);
                 break;
             }
         }
@@ -229,14 +257,14 @@ export class Compiler {
     public compileProgram(ast: any): Instruction[] {
         wc = 0;
         instructions = [];
-        this.compile(ast);
+        this.compile(ast, global_compile_environment);
         instructions[wc++] = { tag: "DONE" };
         return instructions;
     }
 
-    private compileChildren(ast: any): void {
+    private compileChildren(ast: any, ce: any): void {
         if (ast.children && ast.children.length > 0) {
-            ast.children.forEach((child: any) => this.compile(child));
+            ast.children.forEach((child: any) => this.compile(child, ce));
         }
     }
 }
