@@ -173,16 +173,17 @@ export class Compiler {
             case "Crate": {
                 const locals = scan(ast);
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
+                const extended_ce = compile_time_environment_extend(locals, ce);
                 this.compileChildren(
                     ast,
-                    compile_time_environment_extend(locals, ce)
+                    extended_ce
                 );
                 // call main function
                 if (mainAddr != -1) {
                     instructions[wc++] = {
                         tag: "LD",
                         sym: "main",
-                        pos: compile_time_environment_position(ce, "main"),
+                        pos: compile_time_environment_position(extended_ce, "main"),
                     };
                     instructions[wc++] = { tag: "CALL", arity: 0 };
                 }
