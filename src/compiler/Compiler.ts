@@ -16,7 +16,9 @@ import { LiteralExpressionContext } from "../parser/src/RustParser";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
+// let primitive_object = {undefined: undefined}
 let primitive_object = {}
+
 let builtin_array = []
 let global_compile_frame = Object.keys(primitive_object)
 let global_compile_environment = [global_compile_frame]
@@ -49,7 +51,7 @@ export class Compiler {
     }
 
     private compile(ast: any, ce: any): void {
-        console.log(ast.tag);
+        // console.log(ast.tag);
         switch (ast.tag) {
             case "LetStatement": {
                 const letNameNode = findNodeByTag(ast, "Identifier");
@@ -109,9 +111,10 @@ export class Compiler {
                 };
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
+                const extended_ce = compile_time_environment_extend(funcParams, ce);
                 this.compile(
                     findNodeByTag(ast, "BlockExpression"),
-                    compile_time_environment_extend(funcParams, ce)
+                    extended_ce
                 );
                 // TODO: Not sure if we want to return () implicitly as this would result in main evaluating to '()'
                 // Rust returns `()` implicitly for functions that do not return any value
@@ -120,7 +123,7 @@ export class Compiler {
                 instructions[goto_wc].addr = wc;
                 instructions[wc++] = {
                     tag: "ASSIGN",
-                    pos: compile_time_environment_position(ce, funcName),
+                    pos: compile_time_environment_position(extended_ce, funcName),
                 };
                 instructions[wc++] = { tag: "POP" };
                 break;
