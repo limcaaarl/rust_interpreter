@@ -52,6 +52,8 @@ export function getLiteralVal(node: LiteralExpressionContext) {
         return parseFloat(node.FLOAT_LITERAL().getText());
     } else if (node.STRING_LITERAL()) {
         return JSON.parse(node.getText());
+    } else if (node.CHAR_LITERAL()) {
+        return node.getText();
     }
 }
 

@@ -186,6 +186,10 @@ export class TypeChecker {
         } else if (typeof term.val === 'boolean') {
             return BOOL_TYPE;
         } else if (typeof term.val === 'string') {
+            if (term.val.length === 3 && term.val[0] === "'" && term.val[2] === "'") {
+                // this is pretty scuffed
+                return CHAR_TYPE;
+            }
             return STR_TYPE;
         }
 

@@ -702,6 +702,346 @@ async function runTests() {
         "Mutual recursion"
     );
 
+    await runTest(
+        `fn main() {
+            true && false
+        }`,
+        false,
+        "Logical AND operation"
+    );
+
+    await runTest(
+        `fn main() {
+            false || true
+        }`,
+        true,
+        "Logical OR operation"
+    );
+
+    await runTest(
+        `fn main() {
+            true & false
+        }`,
+        false,
+        "Logical AND operation"
+    );
+
+    await runTest(
+        `fn main() {
+            false | true
+        }`,
+        true,
+        "Logical OR operation"
+    );
+
+    await runTest(
+        `fn main() {
+            add("string", 5)
+        }
+        
+        fn add(x: i32, y: i32) -> i32 {
+            x + y
+        }`,
+        "expected i32 but got str",
+        "Function parameter type mismatch (on call side)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            add(1, 5)
+        }
+        
+        fn add(x: i32, y: i32) -> str {
+            x + y
+        }`,
+        "returns i32, but its declared return type is str",
+        "Function return type mismatch",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            add("string", 5)
+        }
+        
+        fn add(x: str, y: i32) -> str {
+            x + y
+        }`,
+        "must be numeric, got str",
+        "Arithmetic operation type mismatch",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let x: i32 = 1.5;
+        }
+        `,
+        "Cannot assign value of type f32 to variable x of type i32",
+        "Assignment type mismatch (f32 to i32)",
+        true
+    );
+
+
+    // I32_TYPE to other types
+    await runTest(
+        `fn main() {
+        let x: f32 = 42;
+    }
+    `,
+        "Cannot assign value of type i32 to variable x of type f32",
+        "Assignment type mismatch (i32 to f32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: bool = 1;
+    }
+    `,
+        "Cannot assign value of type i32 to variable x of type bool",
+        "Assignment type mismatch (i32 to bool)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: str = 42;
+    }
+    `,
+        "Cannot assign value of type i32 to variable x of type str",
+        "Assignment type mismatch (i32 to str)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: char = 65;
+    }
+    `,
+        "Cannot assign value of type i32 to variable x of type char",
+        "Assignment type mismatch (i32 to char)",
+        true
+    );
+
+    // F32_TYPE to other types
+    await runTest(
+        `fn main() {
+        let x: i32 = 3.14;
+    }
+    `,
+        "Cannot assign value of type f32 to variable x of type i32",
+        "Assignment type mismatch (f32 to i32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: bool = 1.1;
+    }
+    `,
+        "Cannot assign value of type f32 to variable x of type bool",
+        "Assignment type mismatch (f32 to bool)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: str = 3.14;
+    }
+    `,
+        "Cannot assign value of type f32 to variable x of type str",
+        "Assignment type mismatch (f32 to str)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: char = 65.2;
+    }
+    `,
+        "Cannot assign value of type f32 to variable x of type char",
+        "Assignment type mismatch (f32 to char)",
+        true
+    );
+
+    // BOOL_TYPE to other types
+    await runTest(
+        `fn main() {
+        let x: i32 = true;
+    }
+    `,
+        "Cannot assign value of type bool to variable x of type i32",
+        "Assignment type mismatch (bool to i32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: f32 = true;
+    }
+    `,
+        "Cannot assign value of type bool to variable x of type f32",
+        "Assignment type mismatch (bool to f32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: str = true;
+    }
+    `,
+        "Cannot assign value of type bool to variable x of type str",
+        "Assignment type mismatch (bool to str)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: char = true;
+    }
+    `,
+        "Cannot assign value of type bool to variable x of type char",
+        "Assignment type mismatch (bool to char)",
+        true
+    );
+
+    // STR_TYPE to other types
+    await runTest(
+        `fn main() {
+        let x: i32 = "42";
+    }
+    `,
+        "Cannot assign value of type str to variable x of type i32",
+        "Assignment type mismatch (str to i32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: f32 = "3.14";
+    }
+    `,
+        "Cannot assign value of type str to variable x of type f32",
+        "Assignment type mismatch (str to f32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: bool = "true";
+    }
+    `,
+        "Cannot assign value of type str to variable x of type bool",
+        "Assignment type mismatch (str to bool)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: char = "A";
+    }
+    `,
+        "Cannot assign value of type str to variable x of type char",
+        "Assignment type mismatch (str to char)",
+        true
+    );
+
+    // CHAR_TYPE to other types
+    await runTest(
+        `fn main() {
+        let x: i32 = 'A';
+    }
+    `,
+        "Cannot assign value of type char to variable x of type i32",
+        "Assignment type mismatch (char to i32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: f32 = 'A';
+    }
+    `,
+        "Cannot assign value of type char to variable x of type f32",
+        "Assignment type mismatch (char to f32)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: bool = 'A';
+    }
+    `,
+        "Cannot assign value of type char to variable x of type bool",
+        "Assignment type mismatch (char to bool)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+        let x: str = 'A';
+    }
+    `,
+        "Cannot assign value of type char to variable x of type str",
+        "Assignment type mismatch (char to str)",
+        true
+    );
+
+    // Same-type assignments (all should be valid)
+    await runTest(
+        `fn main() {
+        let x: i32 = 42;
+        x
+    }
+    `,
+        42,
+        "Valid assignment (i32 to i32)",
+    );
+
+    await runTest(
+        `fn main() {
+        let x: f32 = 3.14;
+        x
+    }
+    `,
+        3.14,
+        "Valid assignment (f32 to f32)",
+    );
+
+    await runTest(
+        `fn main() {
+        let x: bool = true;
+        x
+    }
+    `,
+        true,
+        "Valid assignment (bool to bool)",
+    );
+
+    await runTest(
+        `fn main() {
+        let x: str = "hello";
+        x
+    }
+    `,
+        "hello",
+        "Valid assignment (str to str)",
+    );
+
+    await runTest(
+        `fn main() {
+        let x: char = 'A';
+        x
+    }
+    `,
+        "'A'",
+        "Valid assignment (char to char)",
+    );
+
+
+
     // Print summary
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);
