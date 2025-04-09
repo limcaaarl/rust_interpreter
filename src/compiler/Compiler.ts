@@ -52,8 +52,14 @@ export class Compiler {
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
-                // Compile the right hand side of the '='
-                this.compile(ast.children[3]);
+                const typeNode = findNodeByTag(ast, 'Type_');
+
+                // If type annotation exists
+                if (typeNode) {
+                    this.compile(ast.children[5]);
+                } else { // If there is no type annotation
+                    this.compile(ast.children[3]);
+                }
 
                 instructions[wc++] = {
                     tag: "ASSIGN",
