@@ -542,7 +542,7 @@ async function runTests() {
     );
 
     await runTest(
-        `fn factorial(n: u64) -> u64 {
+        `fn factorial(n: i32) -> i32 {
             if (n == 0) | (n == 1) {
                 1
             } else {
@@ -658,7 +658,7 @@ async function runTests() {
         I32_TYPE,
         "Nested block type"
     );
-    
+
     await runTest(
         `fn main() {
             if true {
@@ -671,6 +671,35 @@ async function runTests() {
         "Mismatched types",
         "If statement branches with different type",
         true
+    );
+
+    await runTest(
+        `// Function WITH explicit type declaration
+        fn is_even(n: i32) -> bool {
+            // Base case
+            if n == 0 {
+                return true;
+            }
+            // Recursive case - calls the implicitly typed function
+            is_odd(n - 1)
+        }
+
+        fn is_odd(n: i32) -> bool {
+            // Base case
+            if n == 0 {
+                false
+            } else {
+                // Recursive case - calls the explicitly typed function
+                is_even(n - 1)
+            }
+        }
+
+        fn main() {
+            is_even(4)
+        }
+    `,
+        true,
+        "Mutual recursion"
     );
 
     // Print summary

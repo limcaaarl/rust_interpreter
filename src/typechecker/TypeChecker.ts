@@ -1,7 +1,5 @@
-// ---- Type Checker ----
-
 import { extractTerminalValue, findNodeByTag, getFunctionParams, getReturnType } from "../compiler/CompilerHelper";
-import { getMainFunction, scan } from "../Utils";
+import { getMainFunction } from "../Utils";
 import { TypeEnvironment } from "./TypeEnvironment";
 import { BOOL_TYPE, CHAR_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./Types";
 
@@ -76,46 +74,52 @@ export class TypeChecker {
     // Crate is the root node, corresponds to a full program
     // Its type is the type of the main function
     private checkCrate(node: any): RustType {
-        // TODO: Check all the function declarations and add them to env
-        const locals = scan(node); // TODO: make a new scanTypes() that returns (name, type)? 
-        for (const local of locals) {
-            this.checkNode(local);
+        const functionNodes = this.scanFunctions(node);
+
+        // 2-phase approach necessary cus with mutual recursion, each function needs to 
+        // know about the other before either body is fully type-checked.
+        // Phase 1: Register all function signatures first
+        for (const func of functionNodes) {
+            this.registerFunctionSignature(func);
         }
 
-        // TODO: replace this since we should have already checked the type 
-        // of main function in the previous step, can just lookup the TypeEnvironment
-        // Check main function
+        // Phase 2: Check all function bodies
+        for (const func of functionNodes) {
+            const funcName = extractTerminalValue(findNodeByTag(func, 'Identifier'));
+            if (funcName !== 'main') {  // Skip main, we'll handle it separately
+                this.checkNode(func);
+            }
+        }
+
+        // Special handling for main function
         const mainFunction = getMainFunction(node);
         if (!mainFunction) {
             this.errors.push('No main function found');
             return UNIT_TYPE;
         }
+
+        // Check main function - its type is the type of its body
         return this.checkNode(mainFunction);
     }
 
     // Check function declaration
     private checkFunction(node: any): RustType {
         const funcName = extractTerminalValue(findNodeByTag(node, 'Identifier'));
+        const funcType = this.env.lookup(funcName);
 
-        // If main function, type of the function is the type of the last expression
-        if (funcName === 'main') {
-            return this.checkNode(node.children[5]);
+        if (!funcType || funcType.kind !== 'function') {
+            this.errors.push(`Function ${funcName} not properly registered`);
+            return UNIT_TYPE;
         }
 
+        // Special handling for main function
+        if (funcName === 'main') {
+            const bodyNode = findNodeByTag(node, 'BlockExpression');
+            return this.checkNode(bodyNode);
+        }
+
+        // Regular function handling (previously in checkFunctionBody)
         const params = getFunctionParams(node);
-        const returnTypeStr = getReturnType(node);
-        const returnType = this.parseTypeString(returnTypeStr);
-
-        // Create function type
-        const paramTypes = params.map(p => this.parseTypeString(p.type));
-        const funcType: RustType = {
-            kind: 'function',
-            params: paramTypes,
-            returnType
-        };
-
-        // Add function to type environment
-        this.env.define(funcName, funcType);
 
         // Check function body with parameter types in scope
         this.env.enterScope();
@@ -127,8 +131,8 @@ export class TypeChecker {
         const bodyType = this.checkNode(bodyNode);
 
         // Verify return type matches
-        if (!this.typesMatch(bodyType, returnType)) {
-            this.errors.push(`Function ${funcName} returns ${this.typeToString(bodyType)}, but its declared return type is ${this.typeToString(returnType)}`);
+        if (!this.typesMatch(bodyType, funcType.returnType)) {
+            this.errors.push(`Function ${funcName} returns ${this.typeToString(bodyType)}, but its declared return type is ${this.typeToString(funcType.returnType)}`);
         }
 
         this.env.exitScope();
@@ -387,6 +391,8 @@ export class TypeChecker {
                 // Result type is the "wider" of the two types
                 return this.getWiderNumericType(leftType, rightType);
 
+            case '|':
+            case '&':
             case '&&':
             case '||':
                 // Boolean operations
@@ -550,5 +556,40 @@ export class TypeChecker {
 
     private checkGroupedExpression(node: any): RustType {
         return this.checkNode(node.children[1]);
+    }
+
+    private scanFunctions(node: any): any[] {
+        if (!node) return [];
+
+        if ((node.tag === "Function_")) {
+            return [node];
+        }
+
+        if (node.children && node.children.length > 0) {
+            return node.children.reduce((acc, child) => {
+                return acc.concat(this.scanFunctions(child));
+            }, []);
+        }
+
+        return [];
+    }
+
+    // Helper method to register function signature
+    private registerFunctionSignature(node: any): void {
+        const funcName = extractTerminalValue(findNodeByTag(node, 'Identifier'));
+        const params = getFunctionParams(node);
+        const returnTypeStr = getReturnType(node);
+        const returnType = this.parseTypeString(returnTypeStr);
+
+        // Create function type
+        const paramTypes = params.map(p => this.parseTypeString(p.type));
+        const funcType: RustType = {
+            kind: 'function',
+            params: paramTypes,
+            returnType
+        };
+
+        // Add function to type environment
+        this.env.define(funcName, funcType);
     }
 }
