@@ -68,27 +68,27 @@ export class VirtualMachine {
         this.allocate_literal_values();
 
         // TODO: Builtins and constants
-        // const builtins_frame = this.allocate_builtin_frame();
-        // const constants_frame = this.allocate_constant_frame();
+        const builtins_frame = this.allocate_builtin_frame();
+        const constants_frame = this.allocate_constant_frame();
         this.E = this.heap_allocate_Environment(0);
-        // this.E = this.heap_Environment_extend(builtins_frame, this.E);
-        // this.E = this.heap_Environment_extend(constants_frame, this.E);
+        this.E = this.heap_Environment_extend(builtins_frame, this.E);
+        this.E = this.heap_Environment_extend(constants_frame, this.E);
         // modified
         this.HEAP_BOTTOM = this.free;
     }
 
     // runs the machine code instructions
     public run(): any {
-        this.init(1000);
-        displayInstructions(this.instr);
+        this.init(10000);
+        // displayInstructions(this.instr);
         while (this.instr[this.PC].tag !== "DONE") {
             const currentInstr = this.instr[this.PC++];
-            this.debugVm(currentInstr);
+            // this.debugVm(currentInstr);
             this.microcode(currentInstr);
         }
-        // return this.peek(this.OS, 0);
-
-        return this.address_to_JS_value(this.peek(this.OS, 0));
+        return this.peek(this.OS, 0);
+        // console.log(this.peek(this.OS, 0))
+        // return this.address_to_JS_value(this.peek(this.OS, 0));
     }
 
     // TODO: Implement all the necessary instructions
@@ -98,12 +98,13 @@ export class VirtualMachine {
                 this.OS.pop();
                 break;
             case "LDC":
-                this.OS.push(this.JS_value_to_address(instr.val));
+                this.OS.push(instr.val);
+                // this.OS.push(this.JS_value_to_address(instr.val));
                 break;
             case "LD": {
                 const val = this.heap_get_Environment_value(this.E, instr.pos);
                 if (this.is_Unassigned(val)) {
-                    throw new Error("access of unassigned variable");
+                    throw new Error("unassigned name: " + instr.sym);
                 }
                 this.OS.push(val);
                 break;
@@ -125,10 +126,9 @@ export class VirtualMachine {
                 break;
             case "EXIT_SCOPE":
                 this.E = this.heap_get_Blockframe_environment(this.RTS.pop());
-                console.log("RESTORING ENV TO: " + this.E);
                 break;
             case "BINOP": {
-                const result = this.apply_binop(
+                const result = apply_binop(
                     instr.sym,
                     this.OS.pop(),
                     this.OS.pop()
@@ -137,12 +137,12 @@ export class VirtualMachine {
                 break;
             }
             case "UNOP": {
-                const result = this.apply_unop(instr.sym, this.OS.pop());
+                const result = apply_unop(instr.sym, this.OS.pop());
                 this.OS.push(result);
                 break;
             }
             case "JOF": {
-                this.PC = this.OS.pop() ? this.PC + 1 : instr.addr;
+                this.PC = this.OS.pop() ? this.PC : instr.addr;
                 break;
             }
             case "GOTO": {
@@ -464,12 +464,8 @@ export class VirtualMachine {
     private heap_Frame_display(address: number): void {
         console.log("", "Frame:");
         const size = this.heap_get_number_of_children(address);
-        console.log(size, "frame size:");
         for (let i = 0; i < size; i++) {
-            console.log(i, "value address:");
             const value = this.heap_get_child(address, i);
-            console.log(value, "value:");
-            console.log(this.word_to_string(value), "value word:");
         }
     }
 
@@ -483,6 +479,10 @@ export class VirtualMachine {
         position: [number, number]
     ): number {
         const [frame_index, value_index] = position;
+        const frameCount = this.heap_get_number_of_children(env_address);
+        if (frame_index >= frameCount) {
+            throw new Error("unbound name: variable not in environment");
+        }
         const frame_address = this.heap_get_child(env_address, frame_index);
         return this.heap_get_child(frame_address, value_index);
     }
@@ -520,10 +520,8 @@ export class VirtualMachine {
     private heap_Environment_display(env_address: any): void {
         const size = this.heap_get_number_of_children(env_address);
         console.log("", "Environment:");
-        console.log(size, "environment size:");
 
         for (let i = 0; i < size; i++) {
-            console.log(i, "frame index:");
             const frame = this.heap_get_child(env_address, i);
             this.heap_Frame_display(frame);
         }
@@ -550,6 +548,8 @@ export class VirtualMachine {
         return this.heap_get_tag(address) === TAGS.Number_tag;
     }
 
+    // TODO: Not sure if we need to follow source's implementation of address_to_JS_value and JS_value_to_address
+    // Our previous implementation already works without this.
     private address_to_JS_value = (x: any): any =>
         this.is_Boolean(x)
             ? this.is_True(x)
@@ -635,8 +635,6 @@ export class VirtualMachine {
         return view;
     }
 
-    // TODO these allocate functions
-
     // private constants = {
     //     undefined     : Undefined,
     //     math_E        : math_E,
@@ -667,7 +665,39 @@ export class VirtualMachine {
     //     return frame_address
     // }
 
-    // private allocate_builtin_frame() {}
+    // TODO: Currently added some random builtins...
+    // not having these frames for builtin and constant was causing some bug where
+    // the pos generated from compiler doesnt match the frame index in vm
+
+    private allocate_builtin_frame(): number {
+        const builtins = ["display", "error"];
+        const frame_address = this.heap_allocate_Frame(builtins.length);
+    
+        for (let i = 0; i < builtins.length; i++) {
+            const builtinAddr = this.heap_allocate_Builtin(i /* or ID */);
+            this.heap_set_child(frame_address, i, builtinAddr);
+        }
+        return frame_address;
+    }
+
+    private allocate_constant_frame(): number {
+        const constantsMap = {
+            undefined: this.Undefined,
+            math_PI: 3.14159,
+            math_E: 2.71828,
+        };
+        const keys = Object.keys(constantsMap);
+        const frame_address = this.heap_allocate_Frame(keys.length);
+    
+        for (let i = 0; i < keys.length; i++) {
+            // For a numeric constant, allocate a number node
+            const numericAddr = this.heap_allocate_Number(constantsMap[keys[i]]);
+            this.heap_set_child(frame_address, i, numericAddr);
+        }
+        return frame_address;
+    }
+    
+    
 
     private heap_allocate(tag: any, size: number) {
         if (size > this.node_size) {
