@@ -108,6 +108,7 @@ export class Compiler {
                 );
                 if (funcName == "main") mainAddr = wc;
                 const funcParams = getFunctionParams(ast);
+                const paramNames = funcParams.map(param => param.name);
                 instructions[wc++] = {
                     tag: "LDF",
                     arity: funcParams.length,
@@ -116,7 +117,7 @@ export class Compiler {
                 };
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
-                const extended_ce = compile_time_environment_extend(funcParams, ce);
+                const extended_ce = compile_time_environment_extend(paramNames, ce);
                 this.compile(
                     findNodeByTag(ast, "BlockExpression"),
                     extended_ce
