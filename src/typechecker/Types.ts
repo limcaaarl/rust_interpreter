@@ -7,9 +7,6 @@ export type RustType =
         'char' | 'str'
     }
     | { kind: 'function', params: RustType[], returnType: RustType }
-    | { kind: 'array', elementType: RustType, size: number | null }
-    | { kind: 'reference', target: RustType, mutable: boolean }
-    | { kind: 'generic', name: string };
 
 export const UNIT_TYPE: RustType = { kind: 'primitive', name: 'unit' };
 export const I32_TYPE: RustType = { kind: 'primitive', name: 'i32' };

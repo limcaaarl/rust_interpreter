@@ -428,37 +428,9 @@ export class TypeChecker {
             case 'char': return CHAR_TYPE;
             case '()': return UNIT_TYPE;
             default:
-                // Handle references
-                if (typeStr.startsWith('&mut ')) {
-                    return {
-                        kind: 'reference',
-                        target: this.parseTypeString(typeStr.substring(5)),
-                        mutable: true
-                    };
-                }
-                if (typeStr.startsWith('&')) {
-                    return {
-                        kind: 'reference',
-                        target: this.parseTypeString(typeStr.substring(1)),
-                        mutable: false
-                    };
-                }
-
-                // Handle arrays
-                if (typeStr.startsWith('[') && typeStr.includes(';')) {
-                    const parts = typeStr.slice(1, -1).split(';');
-                    const elementType = this.parseTypeString(parts[0].trim());
-                    const size = parseInt(parts[1].trim(), 10);
-                    return {
-                        kind: 'array',
-                        elementType,
-                        size: isNaN(size) ? null : size
-                    };
-                }
-
-                // Default to i32 for unrecognized types
-                this.errors.push(`Unknown type: ${typeStr}, defaulting to i32`);
-                return I32_TYPE;
+                // Default to UNIT_TYPE for unrecognized types
+                this.errors.push(`Unknown type: ${typeStr}, defaulting to UNIT`);
+                return UNIT_TYPE;
         }
     }
 
@@ -470,14 +442,6 @@ export class TypeChecker {
             case 'function':
                 const paramTypes = type.params.map(p => this.typeToString(p)).join(', ');
                 return `fn(${paramTypes}) -> ${this.typeToString(type.returnType)}`;
-            case 'array':
-                const sizeStr = type.size !== null ? `; ${type.size}` : '';
-                return `[${this.typeToString(type.elementType)}${sizeStr}]`;
-            case 'reference':
-                const mutStr = type.mutable ? 'mut ' : '';
-                return `&${mutStr}${this.typeToString(type.target)}`;
-            case 'generic':
-                return type.name;
             default:
                 return 'unknown';
         }
@@ -490,14 +454,6 @@ export class TypeChecker {
             return actual.name === expected.name;
         }
 
-        // Handle reference types
-        if (actual.kind === 'reference' && expected.kind === 'reference') {
-            return (
-                actual.mutable === expected.mutable &&
-                this.typesMatch(actual.target, expected.target)
-            );
-        }
-
         // Handle function types
         if (actual.kind === 'function' && expected.kind === 'function') {
             return (
@@ -505,21 +461,6 @@ export class TypeChecker {
                 actual.params.length === expected.params.length &&
                 actual.params.every((t, i) => this.typesMatch(t, expected.params[i]))
             );
-        }
-
-        // Handle array types
-        if (actual.kind === 'array' && expected.kind === 'array') {
-            return (
-                this.typesMatch(actual.elementType, expected.elementType) &&
-                (actual.size === expected.size ||
-                    actual.size === null ||
-                    expected.size === null)
-            );
-        }
-
-        // Handle generic types
-        if (actual.kind === 'generic' && expected.kind === 'generic') {
-            return actual.name === expected.name;
         }
 
         // Types don't match if none of the above cases
