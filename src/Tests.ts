@@ -3,7 +3,7 @@ import { RustEvaluator } from "./RustEvaluator";
 import { ILink } from "conductor/src/conduit";
 import { exit } from "process";
 import { BOOL_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./typechecker/Types";
-import { TypeChecker } from "./typechecker/TypeChecker";
+import { TypeChecker2 } from "./typechecker/TypeChecker2";
 import { generateJsonAst } from "./Utils";
 
 // Create a custom link object implementing ILink interface for Node.js environment
@@ -59,11 +59,11 @@ async function testRust(code: string, expected: any, testName: string, expectErr
 }
 
 function testTypeChecker(code: string, expected: RustType, testName: string) {
-    const typeChecker = new TypeChecker();
+    const typeChecker = new TypeChecker2();
     const jsonAst = generateJsonAst(code);
 
     try {
-        const result = typeChecker.checkNode(jsonAst);
+        const result = typeChecker.check(jsonAst);
         if (result === expected) {
             console.log(`✅ Test: ${testName}`);
             return true;
@@ -79,6 +79,7 @@ function testTypeChecker(code: string, expected: RustType, testName: string) {
         console.error(`Code:\n${code}\n`);
         console.error(`Expected: ${JSON.stringify(expected)}`);
         console.error(`Actual: ${JSON.stringify(error)}`);
+        console.error(error);
         return false;
     }
 }
