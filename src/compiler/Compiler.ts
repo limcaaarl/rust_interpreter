@@ -6,6 +6,7 @@ import {
     getNodeType,
     getFunctionParams,
     getReturnType,
+    getLiteralType,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -25,6 +26,7 @@ export class Compiler {
                 return {
                     tag: "Terminal",
                     val: getLiteralVal(node.parent),
+                    type: getLiteralType(node.parent)
                 };
             } else {
                 return {

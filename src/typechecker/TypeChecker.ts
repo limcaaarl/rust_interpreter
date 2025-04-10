@@ -179,21 +179,21 @@ export class TypeChecker {
         }
 
         const term = node.children[0];
-        // Infer the type from the literal value
-        if (typeof term.val === 'number') {
-            // Determine if it's an integer or float
-            return Number.isInteger(term.val) ? I32_TYPE : F32_TYPE;
-        } else if (typeof term.val === 'boolean') {
-            return BOOL_TYPE;
-        } else if (typeof term.val === 'string') {
-            if (term.val.length === 3 && term.val[0] === "'" && term.val[2] === "'") {
-                // this is pretty scuffed
-                return CHAR_TYPE;
-            }
-            return STR_TYPE;
-        }
 
-        return UNIT_TYPE;
+        switch (term.type) {
+            case 'i32':
+                return I32_TYPE;
+            case 'f32':
+                return F32_TYPE;
+            case 'bool':
+                return BOOL_TYPE;
+            case 'str':
+                return STR_TYPE;
+            case 'char':
+                return CHAR_TYPE;
+            default:
+                return UNIT_TYPE;
+        }
     }
 
     // Check variable references

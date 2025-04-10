@@ -53,7 +53,21 @@ export function getLiteralVal(node: LiteralExpressionContext) {
     } else if (node.STRING_LITERAL()) {
         return JSON.parse(node.getText());
     } else if (node.CHAR_LITERAL()) {
-        return node.getText();
+        return node.getText().replaceAll("'", "");
+    }
+}
+
+export function getLiteralType(node: LiteralExpressionContext): string {
+    if (node.INTEGER_LITERAL()) {
+        return "i32";
+    } else if (node.KW_TRUE() || node.KW_FALSE()) {
+        return "bool";
+    } else if (node.FLOAT_LITERAL()) {
+        return "f32";
+    } else if (node.STRING_LITERAL()) {
+        return "str";
+    } else if (node.CHAR_LITERAL()) {
+        return "char";
     }
 }
 

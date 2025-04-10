@@ -1036,10 +1036,29 @@ async function runTests() {
         x
     }
     `,
-        "'A'",
+        "A",
         "Valid assignment (char to char)",
     );
 
+    await runTest(
+        `fn main() {
+        let x: str = "'A'";
+        x
+    }
+    `,
+        "'A'",
+        "'A' string",
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+        let x: f32 = 1.0;
+        x
+    }
+    `,
+        F32_TYPE,
+        "1.0 f32",
+    );
 
 
     // Print summary
