@@ -16,17 +16,7 @@ import { LiteralExpressionContext } from "../parser/src/RustParser";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
-// let primitive_object = {undefined: undefined}
-let primitive_object = {}
-const constants = {
-    undefined     : undefined,
-}
-let builtins = {};
-let builtin_array = []
-// const builtin_compile_frame = Object.keys(builtins)
-// const constant_compile_frame = Object.keys(constants)
-// const global_compile_environment = 
-//         [builtin_compile_frame, constant_compile_frame]
+
 const global_compile_environment = []
 
 export class Compiler {
@@ -277,78 +267,5 @@ export class Compiler {
         if (ast.children && ast.children.length > 0) {
             ast.children.forEach((child: any) => this.compile(child, ce));
         }
-    }
-    private scanBlock(ast: any): string[] {
-        const locals: string[] = [];
-        let statementsNode: any = null;
-      
-        // If the provided AST node is a BlockExpression, locate its "Statements" child.
-        if (ast.tag === "BlockExpression") {
-          // Find the child whose tag is "Statements"
-          statementsNode = ast.children.find((child: any) => child.tag === "Statements");
-        } else if (ast.tag === "Statements") {
-          // In some cases, the AST node itself could be the "Statements" node.
-          statementsNode = ast;
-        } else {
-          // If the node isn’t a block, there's nothing to scan.
-          return locals;
-        }
-      
-        if (!statementsNode || !statementsNode.children) {
-          return locals;
-        }
-      
-        // Iterate over each immediate (top-level) statement in the "Statements" node.
-        for (const statement of statementsNode.children) {
-          // We expect top-level statements to have tag "Statement".
-          // Only scan those where the first child is a LetStatement.
-          if (
-            statement.tag === "Statement" &&
-            statement.children &&
-            statement.children.length > 0 &&
-            statement.children[0].tag === "LetStatement"
-          ) {
-            // Get the LetStatement node.
-            const letStmt = statement.children[0];
-      
-            // Now, search within this LetStatement for an "Identifier" node.
-            // Since we scan only the immediate children of this let declaration,
-            // it should not traverse into inner blocks.
-            const idNode = findNodeByTag(letStmt, "Identifier");
-            if (idNode) {
-              const varName = extractTerminalValue(idNode);
-              if (varName) {
-                locals.push(varName);
-              }
-            }
-          }
-        }
-      
-        return locals;
-      }
-    private scan(node: any): any[] {
-        // Base case: if the node is null or undefined
-        if (!node) return [];
-    
-        // If this is a LetStatement or Function_, extract its symbol
-        if ((node.tag === "LetStatement" || node.tag === "Function_") && node.children && node.children.length > 0) {
-            // The identifier's actual value is in the child Terminal node of the first Identifier node
-            const identifier = findNodeByTag(node, "Identifier");
-            const terminal = identifier && findNodeByTag(identifier, "Terminal");
-            if (terminal && terminal.val) {
-                return [terminal.val];
-            }
-            return [];
-        }
-    
-        // If this node has children, recursively scan them
-        if (node.children && node.children.length > 0) {
-            return node.children.reduce((acc, child) => {
-                return acc.concat(scan(child));
-            }, []);
-        }
-    
-        // If none of the above, return empty array
-        return [];
     }
 }
