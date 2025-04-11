@@ -1,4 +1,4 @@
-import { extractTerminalValue, findNodeByTag, getFunctionParams, getReturnType } from "../compiler/CompilerHelper";
+import { extractTerminalValue, findNodeByTag, getFunctionParams, getReturnType, parseTypeString } from "../compiler/CompilerHelper";
 import { getMainFunction } from "../Utils";
 import { TypeEnvironment } from "./TypeEnvironment";
 import { BOOL_TYPE, CHAR_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./Types";
@@ -124,7 +124,7 @@ export class TypeChecker {
         // Check function body with parameter types in scope
         this.env.enterScope();
         params.forEach(p => {
-            this.env.define(p.name, this.parseTypeString(p.type));
+            this.env.define(p.name, p.type);
         });
 
         const bodyNode = findNodeByTag(node, 'BlockExpression');
@@ -152,7 +152,7 @@ export class TypeChecker {
         // If type annotation exists, check type compatibility
         if (typeNode) {
             const typeStr = extractTerminalValue(typeNode);
-            declaredType = this.parseTypeString(typeStr);
+            declaredType = parseTypeString(typeStr);
 
             // Check expression type (right of '=')
             inferredType = this.checkNode(node.children[5]);
@@ -414,26 +414,6 @@ export class TypeChecker {
         }
     }
 
-    // Helper method to parse type strings into RustType
-    private parseTypeString(typeStr: string): RustType {
-        if (!typeStr) return UNIT_TYPE;
-
-        typeStr = typeStr.trim();
-
-        switch (typeStr) {
-            case 'i32': return I32_TYPE;
-            case 'f32': return F32_TYPE;
-            case 'bool': return BOOL_TYPE;
-            case 'str': return STR_TYPE;
-            case 'char': return CHAR_TYPE;
-            case '()': return UNIT_TYPE;
-            default:
-                // Default to UNIT_TYPE for unrecognized types
-                this.errors.push(`Unknown type: ${typeStr}, defaulting to UNIT`);
-                return UNIT_TYPE;
-        }
-    }
-
     // Helper method to convert RustType to string
     private typeToString(type: RustType): string {
         switch (type.kind) {
@@ -520,14 +500,14 @@ export class TypeChecker {
     }
 
     // Helper method to register function signature
-    private registerFunctionSignature(node: any): void {
-        const funcName = extractTerminalValue(findNodeByTag(node, 'Identifier'));
-        const params = getFunctionParams(node);
-        const returnTypeStr = getReturnType(node);
-        const returnType = this.parseTypeString(returnTypeStr);
+    private registerFunctionSignature(functionNode: any): void {
+        const funcName = extractTerminalValue(findNodeByTag(functionNode, 'Identifier'));
+        const params = getFunctionParams(functionNode);
+        const returnTypeStr = getReturnType(functionNode);
+        const returnType = parseTypeString(returnTypeStr);
 
         // Create function type
-        const paramTypes = params.map(p => this.parseTypeString(p.type));
+        const paramTypes = params.map(p => p.type);
         const funcType: RustType = {
             kind: 'function',
             params: paramTypes,
