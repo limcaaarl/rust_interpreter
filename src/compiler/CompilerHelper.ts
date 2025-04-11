@@ -131,7 +131,6 @@ export function getFunctionParams(functionNode: any): FunctionParam[] {
     return params;
 }
 
-
 function paramsAreTyped(functionParamNode: any): boolean {
     const patternNode = findNodeByTag(functionParamNode, "FunctionParamPattern");
     if (!patternNode || !(patternNode.children?.length === 3)) {

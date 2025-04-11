@@ -41,7 +41,7 @@ export class Heap {
         this.allocate_literal_values();
         this.HEAP_BOTTOM = this.free;
     }
-    
+
     public mark_sweep() {
         // Mark your root set.
         // In the original code, roots included:
@@ -374,8 +374,28 @@ export class Heap {
         return this.heap_get_tag(address) === TAGS.Number_tag;
     }
 
+    public is_String(address) {
+        return this.heap_get_tag(address) === TAGS.String_tag;
+    }
+
+    // TODO: add char stuff
+    public is_Char(address) {
+
+    }
+
+    // TODO: string stuff
+    public heap_allocate_String() {
+
+    }
+
+    // TODO: add char stuff
+    public heap_allocate_Char() {
+
+    }
+
     // address <-> TS value conversion
 
+    // TODO: add string + char
     public address_to_TS_value = (x: any): any =>
         this.is_Boolean(x)
             ? this.is_True(x)
@@ -400,6 +420,7 @@ export class Heap {
             ? "<builtin>"
             : "unknown word tag: " + this.word_to_string(x);
 
+    // TODO: add string + char
     public TS_value_to_address(x: any): any {
         if (this.is_boolean(x)) {
             return x ? this.True : this.False;

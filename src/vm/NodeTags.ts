@@ -12,4 +12,6 @@ export const TAGS = {
     Environment_tag: 10,
     Pair_tag: 11,
     Builtin_tag: 12,
+    String_tag: 13,
+    Char_tag: 14,
 };
