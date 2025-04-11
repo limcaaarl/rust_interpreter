@@ -6,7 +6,7 @@ import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
 import { RustEvaluatorVisitor } from "./RustEvaluatorVisitor";
 import { displayInstructions } from "./compiler/CompilerHelper";
-import { VirtualMachine } from "./VirtualMachine";
+import { VirtualMachine } from "./vm/VirtualMachine";
 
 export class RustEvaluator extends BasicEvaluator {
     private executionCount: number;
