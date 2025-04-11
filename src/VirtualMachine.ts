@@ -68,11 +68,11 @@ export class VirtualMachine {
         this.allocate_literal_values();
 
         // TODO: Builtins and constants
-        const builtins_frame = this.allocate_builtin_frame();
-        const constants_frame = this.allocate_constant_frame();
+        // const builtins_frame = this.allocate_builtin_frame();
+        // const constants_frame = this.allocate_constant_frame();
         this.E = this.heap_allocate_Environment(0);
-        this.E = this.heap_Environment_extend(builtins_frame, this.E);
-        this.E = this.heap_Environment_extend(constants_frame, this.E);
+        // this.E = this.heap_Environment_extend(builtins_frame, this.E);
+        // this.E = this.heap_Environment_extend(constants_frame, this.E);
         // modified
         this.HEAP_BOTTOM = this.free;
     }
@@ -670,7 +670,7 @@ export class VirtualMachine {
     // the pos generated from compiler doesnt match the frame index in vm
 
     private allocate_builtin_frame(): number {
-        const builtins = ["display", "error"];
+        const builtins = [];
         const frame_address = this.heap_allocate_Frame(builtins.length);
     
         for (let i = 0; i < builtins.length; i++) {
@@ -681,11 +681,7 @@ export class VirtualMachine {
     }
 
     private allocate_constant_frame(): number {
-        const constantsMap = {
-            undefined: this.Undefined,
-            math_PI: 3.14159,
-            math_E: 2.71828,
-        };
+        const constantsMap = {};
         const keys = Object.keys(constantsMap);
         const frame_address = this.heap_allocate_Frame(keys.length);
     

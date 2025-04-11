@@ -23,10 +23,11 @@ const constants = {
 }
 let builtins = {};
 let builtin_array = []
-const builtin_compile_frame = Object.keys(builtins)
-const constant_compile_frame = Object.keys(constants)
-const global_compile_environment = 
-        [builtin_compile_frame, constant_compile_frame]
+// const builtin_compile_frame = Object.keys(builtins)
+// const constant_compile_frame = Object.keys(constants)
+// const global_compile_environment = 
+//         [builtin_compile_frame, constant_compile_frame]
+const global_compile_environment = []
 
 export class Compiler {
     public astToJson(node: ParseTree): any {
