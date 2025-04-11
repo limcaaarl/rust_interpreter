@@ -70,7 +70,7 @@ export class Heap {
         this.sweep();
 
         if (this.free === -1) {
-            throw new Error("heap memory exhausted");
+            error("heap memory exhausted");
         }
     }
 
@@ -118,12 +118,12 @@ export class Heap {
 
     public heap_allocate(tag: any, size: number) {
         if (size > this.node_size) {
-            throw new Error("limitation: nodes cannot be larger than 10 words");
+            error("limitation: nodes cannot be larger than 10 words");
         }
         if (this.free === -1) {
             this.mark_sweep();
             if (this.free === -1) {
-                throw new Error("heap memory exhausted");
+                error("heap memory exhausted");
             }
         }
 
@@ -305,7 +305,7 @@ export class Heap {
         const [frame_index, value_index] = position;
         const frameCount = this.heap_get_number_of_children(env_address);
         if (frame_index >= frameCount) {
-            throw new Error("unbound name: variable not in environment");
+            error("unbound name: variable not in environment");
         }
         const frame_address = this.heap_get_child(env_address, frame_index);
         return this.heap_get_child(frame_address, value_index);

@@ -22,7 +22,7 @@ export function apply_binop(op: string, v2: any, v1: any, heap: Heap): any {
 
     const fn = binop_microcode[op];
     if (!fn) {
-        throw new Error("Unknown binary operator: " + op);
+        error("Unknown binary operator: " + op);
     }
     // Convert addresses -> TS values
     const leftVal = heap.address_to_TS_value(v1);
@@ -43,7 +43,7 @@ export function apply_unop(op: string, v: any, heap: Heap): any {
 
     const fn = unop_microcode[op];
     if (!fn) {
-        throw new Error("Unknown unary operator: " + op);
+        error("Unknown unary operator: " + op);
     }
     // Convert address -> TS value
     const val = heap.address_to_TS_value(v);
