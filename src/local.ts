@@ -2,6 +2,8 @@ import { initialise } from "conductor/src/conductor/runner/util";
 import { RustEvaluator } from "./RustEvaluator";
 import { ILink } from "conductor/src/conduit";
 import { exit } from "process";
+import { TypeChecker } from "./typechecker/TypeChecker";
+import { generateJsonAst } from "./Utils";
 
 // Create a custom link object implementing ILink interface for Node.js environment
 // This is a mock implementation since we're not using web workers
@@ -26,16 +28,22 @@ async function main() {
 
     const code = `
         fn main() {
-            let x = 5;
-            x;
+            1
+        }
+
+        fn test() {
         }
     `;
 
     try {
-        const result = await evaluator.evaluateChunk(code);
+        // const result = await evaluator.evaluateChunk(code);
+
+        const jsonAst = generateJsonAst(code);
+        console.log(JSON.stringify(jsonAst, null, 2));
+        const result = new TypeChecker().checkNode(jsonAst);
         console.log('Result:', result);
     } catch (error) {
-        console.error('Error:', error);
+        console.error(error);
     }
 
     customLink.terminate();

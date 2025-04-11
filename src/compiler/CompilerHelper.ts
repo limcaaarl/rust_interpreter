@@ -1,6 +1,8 @@
-import { ParserRuleContext, ParseTree } from "antlr4ng";
+import { ParserRuleContext } from "antlr4ng";
 import { Instruction } from "./Instruction";
 import { LiteralExpressionContext } from "../parser/src/RustParser";
+import { BOOL_TYPE, CHAR_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "../typechecker/Types";
+import { error } from "../Utils";
 
 // Recursively search for the first node with a given tag.
 export function findNodeByTag(ast: any, tag: string): any {
@@ -28,10 +30,25 @@ export function extractTerminalValue(ast: any): any {
     return "";
 }
 
-// Assume extractType is similar to extractTerminalValue but could be more complex.
-export function extractType(ast: any): string {
-    // Here, we search for a Terminal inside the Type_ subtree.
-    return extractTerminalValue(ast);
+export function extractType(typeNode: any): RustType {
+    const typeStr = extractTerminalValue(typeNode);
+    return parseTypeString(typeStr);
+}
+export function parseTypeString(typeStr: string): RustType {
+    switch (typeStr) {
+        case "i32":
+            return I32_TYPE;
+        case "f32":
+            return F32_TYPE;
+        case "bool":
+            return BOOL_TYPE;
+        case "str":
+            return STR_TYPE;
+        case "char":
+            return CHAR_TYPE;
+        default:
+            return UNIT_TYPE;
+    }
 }
 
 export function displayInstructions(instructions: Instruction[]): void {
@@ -52,6 +69,22 @@ export function getLiteralVal(node: LiteralExpressionContext) {
         return parseFloat(node.FLOAT_LITERAL().getText());
     } else if (node.STRING_LITERAL()) {
         return JSON.parse(node.getText());
+    } else if (node.CHAR_LITERAL()) {
+        return node.getText().replaceAll("'", "");
+    }
+}
+
+export function getLiteralType(node: LiteralExpressionContext): string {
+    if (node.INTEGER_LITERAL()) {
+        return "i32";
+    } else if (node.KW_TRUE() || node.KW_FALSE()) {
+        return "bool";
+    } else if (node.FLOAT_LITERAL()) {
+        return "f32";
+    } else if (node.STRING_LITERAL()) {
+        return "str";
+    } else if (node.CHAR_LITERAL()) {
+        return "char";
     }
 }
 
@@ -61,36 +94,50 @@ export function getNodeType(node: ParserRuleContext): string {
 
 export interface FunctionParam {
     name: string;
-    type: string;
+    type: RustType;
 }
 
 export function getReturnType(ast: any): string {
     const returnNode = findNodeByTag(ast, "FunctionReturnType");
     if (!returnNode) return "";
     const typeNode = findNodeByTag(returnNode, "Type_");
-    
+
     return typeNode ? extractTerminalValue(typeNode) : "";
 }
 
-export function getFunctionParams(ast: any): FunctionParam[] {
+export function getFunctionParams(functionNode: any): FunctionParam[] {
     const params: FunctionParam[] = [];
-    const paramsNode = findNodeByTag(ast, "FunctionParameters");
+    const paramsNode = findNodeByTag(functionNode, "FunctionParameters");
     if (!paramsNode || !paramsNode.children) return params;
-    
+
     for (const child of paramsNode.children) {
         if (child.tag !== "FunctionParam") continue;
-        
+
+        if (!paramsAreTyped(child)) {
+            const funcName = extractTerminalValue(findNodeByTag(functionNode, 'Identifier'));
+            error(`Function ${funcName} has parameters that are not properly typed`);
+        };
+
         const identifierNode = findNodeByTag(child, "Identifier");
         const typeNode = findNodeByTag(child, "Type_");
-        
+
         if (identifierNode && typeNode) {
             const name = extractTerminalValue(identifierNode);
-            const typeStr = extractType(typeNode);
-            params.push({ name, type: typeStr });
+            const type = extractType(typeNode);
+            params.push({ name, type: type });
         }
     }
-    
+
     return params;
+}
+
+
+function paramsAreTyped(functionParamNode: any): boolean {
+    const patternNode = findNodeByTag(functionParamNode, "FunctionParamPattern");
+    if (!patternNode || !(patternNode.children?.length === 3)) {
+        return false;
+    }
+    return true;
 }
 
 export function compile_time_environment_position(env, x) {

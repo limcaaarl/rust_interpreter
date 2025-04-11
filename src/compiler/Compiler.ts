@@ -8,10 +8,12 @@ import {
     getReturnType,
     compile_time_environment_position,
     compile_time_environment_extend,
+    getLiteralType,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
 import { LiteralExpressionContext } from "../parser/src/RustParser";
+import { TypeChecker } from "../typechecker/TypeChecker";
 
 let instructions: Instruction[] = [];
 let wc = 0;
@@ -20,12 +22,15 @@ let mainAddr = -1;
 const global_compile_environment = []
 
 export class Compiler {
+    private typeChecker: TypeChecker = new TypeChecker();
+
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
             if (node.parent instanceof LiteralExpressionContext) {
                 return {
                     tag: "Terminal",
                     val: getLiteralVal(node.parent),
+                    type: getLiteralType(node.parent)
                 };
             } else {
                 return {
@@ -55,6 +60,14 @@ export class Compiler {
 
                 // Compile the right hand side of the '='
                 this.compile(ast.children[3], ce);
+                const typeNode = findNodeByTag(ast, 'Type_');
+
+                // If type annotation exists
+                if (typeNode) {
+                    this.compile(ast.children[5]);
+                } else { // If there is no type annotation
+                    this.compile(ast.children[3]);
+                }
 
                 instructions[wc++] = {
                     tag: "ASSIGN",
@@ -218,8 +231,10 @@ export class Compiler {
                 if (altExists) {
                     const alternative_address = wc;
                     instructions[jof_wc].addr = alternative_address;
-                    const cons = ast.children[4];
-                    this.compile(cons, ce);
+                    const alt = ast.children[4];
+                    this.compile(alt, ce);
+                } else {
+                    instructions[jof_wc].addr = wc;
                 }
                 instructions[goto_wc].addr = wc;
                 break;
@@ -255,7 +270,22 @@ export class Compiler {
         }
     }
 
+    private typeCheck(ast: any): boolean {
+        const valid = this.typeChecker.check(ast);
+        // if (!valid) {
+        //     const errors = this.typeChecker.getErrors();
+        //     console.error('Type checking errors:');
+        //     errors.forEach(err => console.error(`- ${err}`));
+        // }
+        return valid;
+    }
+
     public compileProgram(ast: any): Instruction[] {
+        const valid = this.typeCheck(ast);
+        if (!valid) {
+            throw new Error('Type checking failed: ' + this.typeChecker.getErrors());
+        }
+
         wc = 0;
         instructions = [];
         this.compile(ast, global_compile_environment);
