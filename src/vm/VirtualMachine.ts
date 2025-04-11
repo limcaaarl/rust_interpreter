@@ -133,6 +133,9 @@ export class VirtualMachine {
                 } else {
                     this.PC--;
                 }
+                if (this.OS.length === 0) {
+                    this.OS.push(this.heap.Undefined);
+                }
                 break;
             }
             default:
