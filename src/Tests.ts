@@ -1300,7 +1300,7 @@ async function runTests() {
             let x = 5;
             let y = &x;
             let z = &x;  // Multiple immutable borrows are okay
-            y + z
+            *y + *z
         }`,
         10,
         "Multiple immutable borrows"
