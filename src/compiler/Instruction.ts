@@ -3,7 +3,6 @@ export type Instruction =
     | { tag: "LD"; sym: string; pos: any }
     | { tag: "LDF"; arity: number; retType: string; addr: number }
     | { tag: "ASSIGN"; pos: any }
-    | { tag: "ASSIGN_MUT"; pos: any }  // New instruction for mutable variable assignments
     | { tag: "ASSIGN_CONST"; sym: string; type: string }
     | { tag: "ASSIGN_STATIC"; sym: string; type: string }
     | { tag: "JOF"; addr: number }

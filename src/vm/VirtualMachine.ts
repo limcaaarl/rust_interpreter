@@ -58,15 +58,6 @@ export class VirtualMachine {
                 );
                 break;
             }
-            case "ASSIGN_MUT": {
-                // For now, identical to ASSIGN, but separated for future extensions
-                this.heap.heap_set_Environment_value(
-                    this.E,
-                    instr.pos,
-                    this.peek(this.OS, 0)
-                );
-                break;
-            }
             case "REF": {
                 // Pass the location information rather than the value
                 const refAddress = this.heap.heap_allocate_Reference(instr.pos, instr.mutable);

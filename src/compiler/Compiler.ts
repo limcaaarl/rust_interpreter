@@ -69,11 +69,8 @@ export class Compiler {
                     this.compile(ast.children[3], ce);
                 }
 
-                // Check if variable is declared as mutable
-                const isMutable = this.hasMutKeyword(ast);
-
                 instructions[wc++] = {
-                    tag: isMutable ? "ASSIGN_MUT" : "ASSIGN",
+                    tag: "ASSIGN",
                     pos: compile_time_environment_position(ce, letName),
                 };
 
