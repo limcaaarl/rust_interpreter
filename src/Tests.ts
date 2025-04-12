@@ -1244,7 +1244,7 @@ async function runTests() {
         }
         
         fn increment(n: &mut i32) {
-            *n += 1;
+            *n = *n + 1;
         }`,
         6,
         "Function with mutable reference parameter"
