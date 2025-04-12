@@ -22,7 +22,7 @@ export class Heap {
     public Undefined: number;
     public Null: number;
 
-    constructor() {}
+    constructor() { }
 
     public init(heapsize_words: number) {
         this.ALLOCATING = [];
@@ -393,32 +393,80 @@ export class Heap {
 
     }
 
+    // Reference
+    public heap_allocate_Reference(value: number[], mutable: boolean): number {
+        const reference_address = this.heap_allocate(TAGS.Reference_tag, 3);
+        // Store frame index and value index instead of the value itself
+        this.heap_set_child(reference_address, 0, value[0]); // frame index
+        this.heap_set_child(reference_address, 1, value[1]); // value index
+        this.heap_set_byte_at_offset(reference_address, 2, mutable ? 1 : 0); // mutability
+        return reference_address;
+    }
+
+    public is_Reference(address: number): boolean {
+        return this.heap_get_tag(address) === TAGS.Reference_tag;
+    }
+
+    public heap_get_Reference_value(address: number, environment?: any): number {
+        // Get the frame and value indices stored in the reference
+        const frameIndex = this.heap_get_child(address, 0);
+        const valueIndex = this.heap_get_child(address, 1);
+
+        // If environment is provided, use it to look up the value
+        if (environment) {
+            return this.heap_get_Environment_value(environment, [frameIndex, valueIndex]);
+        }
+
+        // For cases where environment isn't available (like address_to_TS_value conversion)
+        // This is a fallback but won't give correct results for dereferencing
+        return this.heap_get_child(address, 0);
+    }
+
+    public heap_set_Reference_value(address: number, value: number, environment: any): void {
+        // Get location from reference
+        const frameIndex = this.heap_get_child(address, 0);
+        const valueIndex = this.heap_get_child(address, 1);
+
+        // Update the actual value in the environment
+        this.heap_set_Environment_value(environment, [frameIndex, valueIndex], value);
+    }
+
+    public is_Reference_mutable(address: number): boolean {
+        return this.heap_get_byte_at_offset(address, 2) === 1;
+    }
+
     // address <-> TS value conversion
 
     // TODO: add string + char
-    public address_to_TS_value = (x: any): any =>
-        this.is_Boolean(x)
-            ? this.is_True(x)
-                ? true
-                : false
-            : this.is_Number(x)
-            ? this.heap_get(x + 1)
-            : this.is_Undefined(x)
-            ? undefined
-            : this.is_Unassigned(x)
-            ? "<unassigned>"
-            : this.is_Null(x)
-            ? null
-            : this.is_Pair(x)
-            ? [
-                  this.address_to_TS_value(this.heap_get_child(x, 0)),
-                  this.address_to_TS_value(this.heap_get_child(x, 1)),
-              ]
-            : this.is_Closure(x)
-            ? "<closure>"
-            : this.is_Builtin(x)
-            ? "<builtin>"
-            : "unknown word tag: " + this.word_to_string(x);
+    public address_to_TS_value(x: any): any {
+        if (this.is_Boolean(x)) {
+            return this.is_True(x) ? true : false;
+        } else if (this.is_Number(x)) {
+            return this.heap_get(x + 1);
+        } else if (this.is_Undefined(x)) {
+            return undefined;
+        } else if (this.is_Unassigned(x)) {
+            return "<unassigned>";
+        } else if (this.is_Null(x)) {
+            return null;
+        } else if (this.is_Pair(x)) {
+            const head = this.address_to_TS_value(this.heap_get_child(x, 0));
+            const tail = this.address_to_TS_value(this.heap_get_child(x, 1));
+            return [head, tail];
+        } else if (this.is_Reference(x)) {
+            return {
+                type: "reference",
+                value: this.address_to_TS_value(this.heap_get_Reference_value(x)),
+                mutable: this.is_Reference_mutable(x),
+            };
+        } else if (this.is_Closure(x)) {
+            return "<closure>";
+        } else if (this.is_Builtin(x)) {
+            return "<builtin>";
+        } else {
+            return "unknown word tag: " + this.word_to_string(x);
+        }
+    }
 
     // TODO: add string + char
     public TS_value_to_address(x: any): any {

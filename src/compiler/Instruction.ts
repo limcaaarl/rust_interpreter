@@ -3,6 +3,7 @@ export type Instruction =
     | { tag: "LD"; sym: string; pos: any }
     | { tag: "LDF"; arity: number; retType: string; addr: number }
     | { tag: "ASSIGN"; pos: any }
+    | { tag: "ASSIGN_MUT"; pos: any }  // New instruction for mutable variable assignments
     | { tag: "ASSIGN_CONST"; sym: string; type: string }
     | { tag: "ASSIGN_STATIC"; sym: string; type: string }
     | { tag: "JOF"; addr: number }
@@ -14,4 +15,7 @@ export type Instruction =
     | { tag: "ENTER_SCOPE"; num: number }
     | { tag: "EXIT_SCOPE" }
     | { tag: "POP" }
+    | { tag: "REF"; pos: any; mutable: boolean } // Create a reference to a value
+    | { tag: "DEREF" } // Dereference a reference
+    | { tag: "UPDATE_REF" } // Update a reference's value
     | { tag: "DONE" };

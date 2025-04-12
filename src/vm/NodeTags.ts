@@ -14,4 +14,5 @@ export const TAGS = {
     Builtin_tag: 12,
     String_tag: 13,
     Char_tag: 14,
+    Reference_tag: 15, // Added for References (&x or &mut x)
 };

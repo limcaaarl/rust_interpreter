@@ -35,6 +35,23 @@ export function extractType(typeNode: any): RustType {
     return parseTypeString(typeStr);
 }
 export function parseTypeString(typeStr: string): RustType {
+    // Check for reference types
+    if (typeStr.startsWith('&')) {
+        let mutable = false;
+        let targetTypeStr = typeStr.substring(1); // Remove the '&'
+        
+        // Check for mut keyword
+        if (targetTypeStr.startsWith('mut ')) {
+            mutable = true;
+            targetTypeStr = targetTypeStr.substring(4); // Remove 'mut '
+        }
+        
+        // Parse the target type
+        const targetType = parseTypeString(targetTypeStr);
+        return { kind: 'reference', targetType, mutable };
+    }
+    
+    // Handle primitive types
     switch (typeStr) {
         case "i32":
             return I32_TYPE;

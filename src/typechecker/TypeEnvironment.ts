@@ -1,5 +1,10 @@
 import { RustType } from "./Types";
 
+interface VariableInfo {
+    type: RustType;
+    mutable: boolean;
+}
+
 /**
  * A simple stack-based type environment.  Each scope is a Map of names to
  * types.  The topmost scope is the current scope, and `enterScope` and
@@ -7,10 +12,10 @@ import { RustType } from "./Types";
  */
 export class TypeEnvironment {
     /**
-     * The stack of scopes.  Each scope is a Map of names to types.  The
+     * The stack of scopes.  Each scope is a Map of names to variable info.  The
      * topmost scope is the current scope.
      */
-    private scopes: Map<string, RustType>[] = [];
+    private scopes: Map<string, VariableInfo>[] = [];
 
     /**
      * Create a new type environment with a single global scope.
@@ -43,9 +48,10 @@ export class TypeEnvironment {
      *
      * @param name The name to define.
      * @param type The type to associate with the name.
+     * @param mutable Whether the variable is mutable.
      */
-    define(name: string, type: RustType): void {
-        this.scopes[0].set(name, type);
+    define(name: string, type: RustType, mutable: boolean = false): void {
+        this.scopes[0].set(name, { type, mutable });
     }
 
     /**
@@ -59,9 +65,24 @@ export class TypeEnvironment {
     lookup(name: string): RustType | null {
         for (const scope of this.scopes) {
             if (scope.has(name)) {
-                return scope.get(name)!;
+                return scope.get(name)!.type;
             }
         }
         return null;
+    }
+
+    /**
+     * Check if a variable is mutable.
+     * 
+     * @param name The name to check.
+     * @return Whether the variable is mutable, or false if the name is not found.
+     */
+    isMutable(name: string): boolean {
+        for (const scope of this.scopes) {
+            if (scope.has(name)) {
+                return scope.get(name)!.mutable;
+            }
+        }
+        return false;
     }
 }

@@ -69,8 +69,11 @@ export class Compiler {
                     this.compile(ast.children[3], ce);
                 }
 
+                // Check if variable is declared as mutable
+                const isMutable = this.hasMutKeyword(ast);
+
                 instructions[wc++] = {
-                    tag: "ASSIGN",
+                    tag: isMutable ? "ASSIGN_MUT" : "ASSIGN",
                     pos: compile_time_environment_position(ce, letName),
                 };
 
@@ -262,6 +265,71 @@ export class Compiler {
                 }
                 break;
             }
+            case "AssignmentExpression": {
+                // Get the left-hand side of the assignment
+                const leftNode = ast.children[0];
+
+                if (leftNode.tag === 'PathExpression_') {
+                    // Direct variable assignment (x = value)
+                    // Compile the right hand side expression first
+                    this.compile(ast.children[2], ce);
+
+                    const varName = extractTerminalValue(leftNode);
+
+                    instructions[wc++] = {
+                        tag: "ASSIGN",
+                        pos: compile_time_environment_position(ce, varName),
+                    };
+                } else if (leftNode.tag === 'DereferenceExpression') {
+                    // Assignment through dereferenced reference (*x = value)
+
+                    // First compile the reference expression (what *x points to)
+                    this.compile(leftNode.children[1], ce);
+
+                    // Then compile the right-hand side expression (the value to assign)
+                    this.compile(ast.children[2], ce);
+
+                    // Then update the value at the reference
+                    // Now stack has [ref_address, value]
+                    instructions[wc++] = { tag: "UPDATE_REF" };
+                } else {
+                    // Unsupported left-hand side type
+                    throw new Error(`Unsupported assignment target: ${leftNode.tag}`);
+                }
+                break;
+            }
+            case "BorrowExpression": {
+                // For creating a reference (&value or &mut value)
+                // We need to pass the variable position, not just its value
+                const symVal = extractTerminalValue(ast.children[ast.children.length - 1]);
+                const position = compile_time_environment_position(ce, symVal);
+
+                // Check if this is a mutable reference
+                let isMutable = false;
+                for (const child of ast.children) {
+                    if (extractTerminalValue(child) === "mut") {
+                        isMutable = true;
+                        break;
+                    }
+                }
+
+                // Push the environment position to be used when creating the reference
+                instructions[wc++] = {
+                    tag: "REF",
+                    pos: position,
+                    mutable: isMutable
+                };
+                break;
+            }
+            case "DereferenceExpression": {
+                // Get the reference expression
+                const referenceExpr = ast.children[1];
+                this.compile(referenceExpr, ce);
+
+                // Add DEREF instruction
+                instructions[wc++] = { tag: "DEREF" };
+                break;
+            }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
                 this.compileChildren(ast, ce);
@@ -297,5 +365,20 @@ export class Compiler {
         if (ast.children && ast.children.length > 0) {
             ast.children.forEach((child: any) => this.compile(child, ce));
         }
+    }
+
+    private hasMutKeyword(ast: any): boolean {
+        // Find the PatternNoTopAlt node which contains IdentifierPattern
+        const patternNode = findNodeByTag(ast, "PatternNoTopAlt");
+        if (!patternNode) return false;
+
+        // Find the IdentifierPattern node that might contain 'mut'
+        const identifierPatternNode = findNodeByTag(patternNode, "IdentifierPattern");
+        if (!identifierPatternNode) return false;
+
+        // Check if any of the children of IdentifierPattern is the 'mut' keyword
+        return identifierPatternNode.children.some(
+            (child: any) => child.tag === "Terminal" && child.val === "mut"
+        );
     }
 }

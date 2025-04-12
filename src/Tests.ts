@@ -4,7 +4,7 @@ import { ILink } from "conductor/src/conduit";
 import { exit } from "process";
 import { BOOL_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./typechecker/Types";
 import { TypeChecker } from "./typechecker/TypeChecker";
-import { generateJsonAst } from "./Utils";
+import { generateJsonAst, deepEqual } from "./Utils";
 
 // Create a custom link object implementing ILink interface for Node.js environment
 const customLink: ILink = {
@@ -64,7 +64,7 @@ function testTypeChecker(code: string, expected: RustType, testName: string) {
 
     try {
         const result = typeChecker.checkNode(jsonAst);
-        if (result === expected) {
+        if (deepEqual(result, expected)) {
             console.log(`✅ Test: ${testName}`);
             return true;
         } else {
@@ -113,16 +113,6 @@ async function runTests() {
         }`,
         5,
         "Variable assignment"
-    );
-
-    await runTest(
-        `fn main() {
-            let x = 5;
-            x = 3;
-            x
-        }`,
-        5,
-        "Variable reassignment ignored"
     );
 
     await runTest(
@@ -1060,6 +1050,323 @@ async function runTests() {
         "1.0 f32",
     );
 
+    // =====================================================
+    // Tests for mutable variables and reassignment
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            x = 10;
+            x
+        }`,
+        10,
+        "Mutable variable reassignment"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            x = 10;
+            x
+        }`,
+        "Cannot assign to immutable variable",
+        "Reassigning immutable variable (should fail)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            {
+                let mut y = 10;
+                x = y;
+                y = 20;
+                x
+            }
+        }`,
+        10,
+        "Mutable variable assignment between scopes"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let mut y = 10;
+            x = y;
+            y = 20;
+            x  // Should still be 10
+        }`,
+        10,
+        "Mutable variable assignment (value not reference)"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x: i32 = 5;
+            x = 3.14;
+            x
+        }`,
+        "Cannot assign value of type 'f32' to variable 'x' of type 'i32'",
+        "Type checking with mutable reassignment",
+        true
+    );
+
+    // =====================================================
+    // Tests for references and dereferencing
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            *y
+        }`,
+        5,
+        "Immutable reference and dereference"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            *y = 10;
+            x
+        }`,
+        10,
+        "Mutable reference, dereference and assignment"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            *y = 10;
+            x
+        }`,
+        "Cannot assign through an immutable reference",
+        "Assignment through immutable reference (should fail)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            *y + 10
+        }`,
+        15,
+        "Dereference in expression"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            *y = *y + 10;
+            x
+        }`,
+        15,
+        "Compound assignment through dereference"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 10;
+            {
+                let y = &mut x;
+                *y = 20;
+            }
+            x
+        }`,
+        20,
+        "Mutable reference in inner scope"
+    );
+
+    await runTest(
+        `fn main() {
+            let y = 10;
+            *y
+        }`,
+        "Cannot dereference non-reference type",
+        "Dereferencing non-reference value",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &x;  // Immutable borrow
+            *y = 10;
+            x
+        }`,
+        "Cannot assign through an immutable reference.",
+        "Updating through an immutable borrow",
+        true
+    );
+
+    // =====================================================
+    // Tests for nested references and dereferencing
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            let z = &y;  // Reference to a reference
+            **z  // Double dereference
+        }`,
+        5,
+        "Reference to a reference (double dereference)"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let mut y = &mut x;
+            let z = &mut y;  // Mutable reference to a reference
+            **z = 10;  // Assignment through double dereference
+            x
+        }`,
+        10,
+        "Assignment through double dereference"
+    );
+
+    // =====================================================
+    // Tests for function calls with references
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            increment(&mut x);
+            x
+        }
+        
+        fn increment(n: &mut i32) {
+            *n += 1;
+        }`,
+        6,
+        "Function with mutable reference parameter"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            increment(&mut x);
+            x
+        }
+        
+        fn increment(n: &mut i32) {
+            *n += 1;
+        }`,
+        "Cannot create mutable reference to immutable variable",
+        "Creating mutable reference to immutable variable",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = print_and_return(&x);
+            y
+        }
+        
+        fn print_and_return(n: &i32) -> i32 {
+            return *n;
+        }`,
+        5,
+        "Function with immutable reference parameter"
+    );
+
+    // =====================================================
+    // Tests for multiple references
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            let z = &mut x;  // Should fail - already mutably borrowed
+            *y + *z
+        }`,
+        "Cannot borrow 'x' as mutable more than once",
+        "Multiple mutable borrows (should fail)",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            let z = &x;  // Multiple immutable borrows are okay
+            y + z
+        }`,
+        10,
+        "Multiple immutable borrows"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &x;  // Immutable borrow
+            let z = &mut x;  // Should fail - already borrowed immutably
+            *z = 10;
+            *y
+        }`,
+        "Cannot borrow 'x' as mutable because it is also borrowed as immutable",
+        "Mutable borrow when already borrowed immutably",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            {
+                let y = &mut x;  // Mutable borrow in inner scope
+                *y = 10;
+            }  // Mutable borrow ends here
+            let z = &mut x;  // OK because previous borrow is out of scope
+            *z = 15;
+            x
+        }`,
+        15,
+        "Mutable borrows in different scopes"
+    );
+
+    // =====================================================
+    // Type checking for references
+    // =====================================================
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            y
+        }`,
+        { kind: 'reference', targetType: I32_TYPE, mutable: false },
+        "Type of immutable reference"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            y
+        }`,
+        { kind: "reference", targetType: I32_TYPE, mutable: true },
+        "Type of mutable reference"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            *y
+        }`,
+        I32_TYPE,
+        "Type of dereferenced value"
+    );
 
     // Print summary
     const totalTests = testsPassed + testsFailed;

@@ -1,9 +1,7 @@
-import { isBooleanObject } from "util/types";
 import { findNodeByTag } from "./compiler/CompilerHelper";
 import { CharStream, CommonTokenStream } from "antlr4ng";
 import { RustLexer } from "./parser/src/RustLexer";
 import { RustParser } from "./parser/src/RustParser";
-import { VirtualMachine } from "./VirtualMachine";
 import { Compiler } from "./compiler/Compiler";
 
 export class Pair {
@@ -175,4 +173,26 @@ export function getMainFunction(crateNode: any) {
     }
 
     return traverse(crateNode);
+}
+
+// To check reference types as objects are compared by reference, not by value
+export function deepEqual(obj1, obj2) {
+    if (obj1 === obj2) return true; // Same reference or primitive value
+
+    if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
+        return false; // One is not an object or is null
+    }
+
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+
+    if (keys1.length !== keys2.length) return false; // Different number of keys
+
+    for (const key of keys1) {
+        if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) {
+            return false; // Key mismatch or value mismatch
+        }
+    }
+
+    return true;
 }

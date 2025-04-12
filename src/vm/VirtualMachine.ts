@@ -58,6 +58,53 @@ export class VirtualMachine {
                 );
                 break;
             }
+            case "ASSIGN_MUT": {
+                // For now, identical to ASSIGN, but separated for future extensions
+                this.heap.heap_set_Environment_value(
+                    this.E,
+                    instr.pos,
+                    this.peek(this.OS, 0)
+                );
+                break;
+            }
+            case "REF": {
+                // Pass the location information rather than the value
+                const refAddress = this.heap.heap_allocate_Reference(instr.pos, instr.mutable);
+                this.OS.push(refAddress);
+                break;
+            }
+            case "DEREF": {
+                // Dereference a reference
+                const refAddress = this.OS.pop();
+                if (!this.heap.is_Reference(refAddress)) {
+                    throw new Error("Cannot dereference a non-reference value");
+                }
+                // Pass the current environment to properly retrieve the referenced value
+                const targetValue = this.heap.heap_get_Reference_value(refAddress, this.E);
+                this.OS.push(targetValue);
+                break;
+            }
+            case "UPDATE_REF": {
+                // For assigning to a dereferenced reference (*x = value)
+                const value = this.OS.pop(); // Value to assign
+                const refAddress = this.OS.pop(); // Reference address
+
+                // Check if reference exists and is mutable
+                if (!this.heap.is_Reference(refAddress)) {
+                    throw new Error("Cannot update through a non-reference value");
+                }
+
+                if (!this.heap.is_Reference_mutable(refAddress)) {
+                    throw new Error("Cannot update through an immutable reference");
+                }
+
+                // Update the referenced value
+                this.heap.heap_set_Reference_value(refAddress, value, this.E);
+
+                // Push the value back on the stack (assignment expressions evaluate to their value)
+                this.OS.push(value);
+                break;
+            }
             case "ENTER_SCOPE": {
                 this.RTS.push(this.heap.heap_allocate_Blockframe(this.E));
                 const frame_address = this.heap.heap_allocate_Frame(instr.num);
@@ -67,7 +114,7 @@ export class VirtualMachine {
                 }
                 break;
             }
-            case "EXIT_SCOPE":{
+            case "EXIT_SCOPE": {
                 this.E = this.heap.heap_get_Blockframe_environment(this.RTS.pop());
                 break;
             }
