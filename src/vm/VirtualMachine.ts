@@ -150,7 +150,6 @@ export class VirtualMachine {
                     this.heap.heap_set_child(new_frame, i, this.OS.pop());
                 }
 
-                this.heap.ALLOCATING = [new_frame];
                 this.RTS.push(this.heap.heap_allocate_Callframe(this.E, this.PC));
                 this.OS.pop(); // pop fun
                 

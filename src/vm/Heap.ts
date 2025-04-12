@@ -3,7 +3,6 @@ import { error } from "../Utils";
 
 export class Heap {
     // VM Heap Management
-    public ALLOCATING: any[] = [];
     public HEAP_BOTTOM: any;
     public HEAP: DataView;
     public heap_size: number;
@@ -11,9 +10,7 @@ export class Heap {
     public size_offset: number = 5;
     public free: any;
     public word_size: number = 8;
-    public mark_bit: number = 7;
-    public UNMARKED: number = 0;
-    public MARKED: number = 1;
+    private stringPool: any[] = [];
 
     // For literal values (False, True, etc.)
     public False: number;
@@ -25,7 +22,6 @@ export class Heap {
     constructor() { }
 
     public init(heapsize_words: number) {
-        this.ALLOCATING = [];
         this.HEAP_BOTTOM = undefined;
 
         this.HEAP = this.heap_make(heapsize_words);
@@ -40,69 +36,6 @@ export class Heap {
 
         this.allocate_literal_values();
         this.HEAP_BOTTOM = this.free;
-    }
-
-    public mark_sweep() {
-        // Mark your root set.
-        // In the original code, roots included:
-        //   True, False, Undefined, Unassigned, Null,
-        //   OS, E, RTS, ALLOCATING, etc.
-        // The VM can pass them to the heap, or you can store them directly.
-        // For brevity, we'll assume the VM calls `mark_sweep` with them,
-        // or you can gather them here if you prefer.
-
-        const roots = [
-            this.True,
-            this.False,
-            this.Undefined,
-            this.Unassigned,
-            this.Null,
-            // plus anything else the VM passes in or we keep track of
-            ...this.ALLOCATING,
-        ];
-
-        // mark
-        for (let i = 0; i < roots.length; i++) {
-            this.mark(roots[i]);
-        }
-
-        // sweep
-        this.sweep();
-
-        if (this.free === -1) {
-            error("heap memory exhausted");
-        }
-    }
-
-    public mark(node: number) {
-        if (node >= this.heap_size) {
-            return;
-        }
-        if (this.is_unmarked(node)) {
-            this.heap_set_byte_at_offset(node, this.mark_bit, this.MARKED);
-            const num_of_children = this.heap_get_number_of_children(node);
-            for (let i = 0; i < num_of_children; i++) {
-                this.mark(this.heap_get_child(node, i));
-            }
-        }
-    }
-
-    public sweep() {
-        let v = this.HEAP_BOTTOM;
-        while (v < this.heap_size) {
-            if (this.is_unmarked(v)) {
-                this.free_node(v);
-            } else {
-                this.heap_set_byte_at_offset(v, this.mark_bit, this.UNMARKED);
-            }
-            v += this.node_size;
-        }
-    }
-
-    public is_unmarked(node: number) {
-        return (
-            this.heap_get_byte_at_offset(node, this.mark_bit) === this.UNMARKED
-        );
     }
 
     public free_node(node: number) {
@@ -121,7 +54,6 @@ export class Heap {
             error("limitation: nodes cannot be larger than 10 words");
         }
         if (this.free === -1) {
-            this.mark_sweep();
             if (this.free === -1) {
                 error("heap memory exhausted");
             }
@@ -136,6 +68,20 @@ export class Heap {
 
     public heap_get(address: number) {
         return this.HEAP.getFloat64(address * this.word_size);
+    }
+
+    public heap_get_string_hash(address) {
+        return this.heap_get_4_bytes_at_offset(address, 1);
+    }
+
+    public heap_get_string_index(address) {
+        return this.heap_get_2_bytes_at_offset(address, 5);
+    }
+
+    public heap_get_string(address) {
+        return this.stringPool[this.heap_get_string_hash(address)][
+            this.heap_get_string_index(address)
+        ].string;
     }
 
     public heap_set(address: number, x: any) {
@@ -188,6 +134,14 @@ export class Heap {
 
     public heap_get_2_bytes_at_offset(address: number, offset: number): number {
         return this.HEAP.getUint16(address * this.word_size + offset);
+    }
+
+    public heap_set_4_bytes_at_offset(address, offset, value) {
+        return this.HEAP.setUint32(address * this.word_size + offset, value);
+    }
+
+    public heap_get_4_bytes_at_offset(address, offset) {
+        return this.HEAP.getUint32(address * this.word_size + offset);
     }
 
     public word_to_string(word): string {
@@ -326,10 +280,8 @@ export class Heap {
         env_address: any
     ): number {
         const old_size = this.heap_get_size(env_address);
-        this.ALLOCATING = [...this.ALLOCATING, frame_address, env_address];
 
         const new_env_address = this.heap_allocate_Environment(old_size);
-        this.ALLOCATING = [];
 
         let i: number;
         for (i = 0; i < old_size - 1; i++) {
@@ -370,27 +322,44 @@ export class Heap {
         return number_address;
     }
 
-    public is_Number(address: number): boolean {
-        return this.heap_get_tag(address) === TAGS.Number_tag;
+    public hashString(s: string) {
+        let hash = 5381;
+        for (let i = 0; i < s.length; i++) {
+            const char = s.charCodeAt(i);
+            hash = (hash << 5) + hash + char;
+            hash = hash & hash;
+        }
+        return hash >>> 0;
     }
 
-    public is_String(address) {
-        return this.heap_get_tag(address) === TAGS.String_tag;
-    }
+    // Strings
+    public heap_allocate_String(string) {
+        const hash = this.hashString(string);
+        const a = this.stringPool[hash];
 
-    // TODO: add char stuff
-    public is_Char(address) {
+        if (a !== undefined) {
+            for (let i = 0; i < a.length; i++) {
+                if (a[i].string === string) {
+                    return a[i].address;
+                }
+            }
+            const address = this.heap_allocate(TAGS.String_tag, 2);
+            this.heap_set_4_bytes_at_offset(address, 1, hash);
 
-    }
+            const newIndex = a.length;
+            this.heap_set_2_bytes_at_offset(address, 5, newIndex);
 
-    // TODO: string stuff
-    public heap_allocate_String() {
+            a.push({ address, string });
+            return address;
+        } else {
+            const address = this.heap_allocate(TAGS.String_tag, 2);
+            this.heap_set_4_bytes_at_offset(address, 1, hash);
 
-    }
+            this.heap_set_2_bytes_at_offset(address, 5, 0);
 
-    // TODO: add char stuff
-    public heap_allocate_Char() {
-
+            this.stringPool[hash] = [{ address, string }];
+            return address;
+        }
     }
 
     public heap_allocate_Reference(value: number[], mutable: boolean, environment: number): number {
@@ -456,8 +425,6 @@ export class Heap {
     }
 
     // address <-> TS value conversion
-
-    // TODO: add string + char
     public address_to_TS_value(x: any): any {
         if (this.is_Boolean(x)) {
             return this.is_True(x) ? true : false;
@@ -488,7 +455,6 @@ export class Heap {
         }
     }
 
-    // TODO: add string + char
     public TS_value_to_address(x: any): any {
         if (this.is_boolean(x)) {
             return x ? this.True : this.False;
@@ -503,6 +469,8 @@ export class Heap {
                 this.TS_value_to_address(this.head(x)),
                 this.TS_value_to_address(this.tail(x))
             );
+        } else if (this.is_string(x)) {
+            return this.heap_allocate_String(x);
         } else {
             // fallback
             return "unknown word tag: " + this.word_to_string(x);
@@ -529,6 +497,12 @@ export class Heap {
     }
     public is_Builtin(address) {
         return this.heap_get_tag(address) === TAGS.Builtin_tag;
+    }
+    public is_Number(address: number): boolean {
+        return this.heap_get_tag(address) === TAGS.Number_tag;
+    }
+    public is_String(address) {
+        return this.heap_get_tag(address) === TAGS.String_tag;
     }
 
     // TODO: Will this require some change after typechecker implementation?
