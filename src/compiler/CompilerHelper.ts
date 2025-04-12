@@ -30,15 +30,28 @@ export function extractTerminalValue(ast: any): any {
     return "";
 }
 
+export function extractTerminalValues(ast: any): any[] {
+    const values: any[] = [];
+    if (ast.tag === "Terminal") {
+        values.push(ast.val);
+    } else if (ast.children) {
+        for (const child of ast.children) {
+            values.push(...extractTerminalValues(child));
+        }
+    }
+    return values;
+}
+
 export function extractType(typeNode: any): RustType {
-    const typeStr = extractTerminalValue(typeNode);
+    const terminalVals = extractTerminalValues(typeNode);
+    const typeStr = terminalVals.join(" ");
     return parseTypeString(typeStr);
 }
 export function parseTypeString(typeStr: string): RustType {
     // Check for reference types
     if (typeStr.startsWith('&')) {
         let mutable = false;
-        let targetTypeStr = typeStr.substring(1); // Remove the '&'
+        let targetTypeStr = typeStr.substring(2); // Remove '& '
         
         // Check for mut keyword
         if (targetTypeStr.startsWith('mut ')) {

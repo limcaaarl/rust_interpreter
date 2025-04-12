@@ -59,8 +59,8 @@ export class VirtualMachine {
                 break;
             }
             case "REF": {
-                // Pass the location information rather than the value
-                const refAddress = this.heap.heap_allocate_Reference(instr.pos, instr.mutable);
+                // Pass both the location information AND the current environment
+                const refAddress = this.heap.heap_allocate_Reference(instr.pos, instr.mutable, this.E);
                 this.OS.push(refAddress);
                 break;
             }
@@ -70,8 +70,8 @@ export class VirtualMachine {
                 if (!this.heap.is_Reference(refAddress)) {
                     throw new Error("Cannot dereference a non-reference value");
                 }
-                // Pass the current environment to properly retrieve the referenced value
-                const targetValue = this.heap.heap_get_Reference_value(refAddress, this.E);
+                
+                const targetValue = this.heap.heap_get_Reference_value(refAddress);
                 this.OS.push(targetValue);
                 break;
             }
@@ -89,7 +89,6 @@ export class VirtualMachine {
                     throw new Error("Cannot update through an immutable reference");
                 }
 
-                // Update the referenced value
                 this.heap.heap_set_Reference_value(refAddress, value, this.E);
 
                 // Push the value back on the stack (assignment expressions evaluate to their value)
@@ -144,9 +143,7 @@ export class VirtualMachine {
             case "CALL": {
                 const arity = instr.arity;
                 const fun = this.peek(this.OS, arity);
-                // if (is_Builtin(fun)) {
-                //     return apply_builtin(heap_get_Builtin_id(fun))
-                // }
+                
                 const new_PC = this.heap.heap_get_Closure_pc(fun);
                 const new_frame = this.heap.heap_allocate_Frame(arity);
                 for (let i = arity - 1; i >= 0; i--) {
@@ -156,10 +153,14 @@ export class VirtualMachine {
                 this.heap.ALLOCATING = [new_frame];
                 this.RTS.push(this.heap.heap_allocate_Callframe(this.E, this.PC));
                 this.OS.pop(); // pop fun
+                
+                const closureEnv = this.heap.heap_get_Closure_environment(fun);
+                
                 this.E = this.heap.heap_Environment_extend(
                     new_frame,
-                    this.heap.heap_get_Closure_environment(fun)
+                    closureEnv
                 );
+                
                 this.PC = new_PC;
                 break;
             }

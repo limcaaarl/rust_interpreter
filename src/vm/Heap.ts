@@ -393,13 +393,19 @@ export class Heap {
 
     }
 
-    // Reference
-    public heap_allocate_Reference(value: number[], mutable: boolean): number {
-        const reference_address = this.heap_allocate(TAGS.Reference_tag, 3);
+    public heap_allocate_Reference(value: number[], mutable: boolean, environment: number): number {
+        const reference_address = this.heap_allocate(TAGS.Reference_tag, 4);
+
         // Store frame index and value index instead of the value itself
         this.heap_set_child(reference_address, 0, value[0]); // frame index
         this.heap_set_child(reference_address, 1, value[1]); // value index
         this.heap_set_byte_at_offset(reference_address, 2, mutable ? 1 : 0); // mutability
+
+        // Store the environment where the reference was created
+        // As functions create new environments, the same position could refer to different values.
+        // This ensures that we can properly dereference and update the reference.
+        this.heap_set_child(reference_address, 2, environment);
+
         return reference_address;
     }
 
@@ -407,19 +413,27 @@ export class Heap {
         return this.heap_get_tag(address) === TAGS.Reference_tag;
     }
 
-    public heap_get_Reference_value(address: number, environment?: any): number {
+    public heap_get_Reference_value(address: number): number {
         // Get the frame and value indices stored in the reference
         const frameIndex = this.heap_get_child(address, 0);
         const valueIndex = this.heap_get_child(address, 1);
 
-        // If environment is provided, use it to look up the value
-        if (environment) {
-            return this.heap_get_Environment_value(environment, [frameIndex, valueIndex]);
+        // Use the environment stored with the reference if available
+        // This allows us to retrieve the correct value even when the reference is 
+        // accessed from a different environment (like inside a function call)
+        const refEnvironment = this.heap_get_child(address, 2);
+
+        // Use the reference's stored environment if available
+        if (refEnvironment) {
+            const frame_address = this.heap_get_child(refEnvironment, frameIndex);
+
+            if (frame_address) {
+                const value_address = this.heap_get_child(frame_address, valueIndex);
+                return value_address;
+            }
         }
 
-        // For cases where environment isn't available (like address_to_TS_value conversion)
-        // This is a fallback but won't give correct results for dereferencing
-        return this.heap_get_child(address, 0);
+        return this.Undefined;
     }
 
     public heap_set_Reference_value(address: number, value: number, environment: any): void {
@@ -427,8 +441,14 @@ export class Heap {
         const frameIndex = this.heap_get_child(address, 0);
         const valueIndex = this.heap_get_child(address, 1);
 
-        // Update the actual value in the environment
-        this.heap_set_Environment_value(environment, [frameIndex, valueIndex], value);
+        // Use the environment stored with the reference if available
+        const refEnvironment = this.heap_get_child(address, 2) || environment;
+
+        const frameAddress = this.heap_get_child(refEnvironment, frameIndex);
+
+        if (frameAddress) {
+            this.heap_set_child(frameAddress, valueIndex, value);
+        }
     }
 
     public is_Reference_mutable(address: number): boolean {
