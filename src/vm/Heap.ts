@@ -138,6 +138,21 @@ export class Heap {
         return this.HEAP.getFloat64(address * this.word_size);
     }
 
+    public heap_get_string(address: number) {
+        const length = this.heap_get(address + 1);
+        let str = "";
+        for (let i = 0; i < length; i++) {
+            const code = this.heap_get(address + 2 + i);
+            str += String.fromCharCode(code);
+        }
+        return str;
+    }
+
+    public heap_get_char(address: number) {
+        const ch = this.heap_get(address + 1); 
+        return String.fromCharCode(ch);
+    }
+
     public heap_set(address: number, x: any) {
         this.HEAP.setFloat64(address * this.word_size, x);
     }
@@ -370,32 +385,38 @@ export class Heap {
         return number_address;
     }
 
-    public is_Number(address: number): boolean {
-        return this.heap_get_tag(address) === TAGS.Number_tag;
+    // String and chars
+    public heap_allocate_String(s: string): number {
+        const needed = 2 + 1 + s.length;
+        if (needed > this.node_size) {
+            error("String too big to fit in a single 10-word node");
+        }
+    
+        // Allocate the node
+        const address = this.heap_allocate(TAGS.String_tag, needed);
+    
+        // Store the string length in child(0)
+        this.heap_set(address + 1, s.length);
+    
+        for (let i = 0; i < s.length; i++) {
+            this.heap_set(address + 2 + i, s.charCodeAt(i));
+        }
+    
+        return address;
     }
 
-    public is_String(address) {
-        return this.heap_get_tag(address) === TAGS.String_tag;
-    }
-
-    // TODO: add char stuff
-    public is_Char(address) {
-
-    }
-
-    // TODO: string stuff
-    public heap_allocate_String() {
-
-    }
-
-    // TODO: add char stuff
-    public heap_allocate_Char() {
-
+    public heap_allocate_Char(ch: string): number {
+        if (ch.length !== 1) {
+            error("heap_allocate_Char called with a string that has length != 1");
+        }
+        const address = this.heap_allocate(TAGS.Char_tag, 2);
+    
+        this.heap_set(address + 1, ch.charCodeAt(0));
+        return address;
     }
 
     // address <-> TS value conversion
 
-    // TODO: add string + char
     public address_to_TS_value = (x: any): any =>
         this.is_Boolean(x)
             ? this.is_True(x)
@@ -403,6 +424,10 @@ export class Heap {
                 : false
             : this.is_Number(x)
             ? this.heap_get(x + 1)
+            : this.is_String(x)
+            ? this.heap_get_string(x)
+            : this.is_Char(x)
+            ? this.heap_get_char(x)
             : this.is_Undefined(x)
             ? undefined
             : this.is_Unassigned(x)
@@ -420,7 +445,6 @@ export class Heap {
             ? "<builtin>"
             : "unknown word tag: " + this.word_to_string(x);
 
-    // TODO: add string + char
     public TS_value_to_address(x: any): any {
         if (this.is_boolean(x)) {
             return x ? this.True : this.False;
@@ -435,6 +459,12 @@ export class Heap {
                 this.TS_value_to_address(this.head(x)),
                 this.TS_value_to_address(this.tail(x))
             );
+        } else if (this.is_string(x)) {
+            if (x.length === 1) {
+                return this.heap_allocate_Char(x);
+            } else {
+                return this.heap_allocate_String(x);
+            }
         } else {
             // fallback
             return "unknown word tag: " + this.word_to_string(x);
@@ -461,6 +491,15 @@ export class Heap {
     }
     public is_Builtin(address) {
         return this.heap_get_tag(address) === TAGS.Builtin_tag;
+    }
+    public is_Number(address: number): boolean {
+        return this.heap_get_tag(address) === TAGS.Number_tag;
+    }
+    public is_String(address) {
+        return this.heap_get_tag(address) === TAGS.String_tag;
+    }
+    public is_Char(address) {
+        return this.heap_get_tag(address) === TAGS.Char_tag;
     }
 
     // TODO: Will this require some change after typechecker implementation?
