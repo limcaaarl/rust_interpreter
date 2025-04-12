@@ -3,7 +3,6 @@ import { error } from "../Utils";
 
 export class Heap {
     // VM Heap Management
-    public ALLOCATING: any[] = [];
     public HEAP_BOTTOM: any;
     public HEAP: DataView;
     public heap_size: number;
@@ -11,9 +10,6 @@ export class Heap {
     public size_offset: number = 5;
     public free: any;
     public word_size: number = 8;
-    public mark_bit: number = 7;
-    public UNMARKED: number = 0;
-    public MARKED: number = 1;
     private stringPool: any[] = [];
 
     // For literal values (False, True, etc.)
@@ -26,7 +22,6 @@ export class Heap {
     constructor() {}
 
     public init(heapsize_words: number) {
-        this.ALLOCATING = [];
         this.HEAP_BOTTOM = undefined;
 
         this.HEAP = this.heap_make(heapsize_words);
@@ -41,69 +36,6 @@ export class Heap {
 
         this.allocate_literal_values();
         this.HEAP_BOTTOM = this.free;
-    }
-
-    public mark_sweep() {
-        // Mark your root set.
-        // In the original code, roots included:
-        //   True, False, Undefined, Unassigned, Null,
-        //   OS, E, RTS, ALLOCATING, etc.
-        // The VM can pass them to the heap, or you can store them directly.
-        // For brevity, we'll assume the VM calls `mark_sweep` with them,
-        // or you can gather them here if you prefer.
-
-        const roots = [
-            this.True,
-            this.False,
-            this.Undefined,
-            this.Unassigned,
-            this.Null,
-            // plus anything else the VM passes in or we keep track of
-            ...this.ALLOCATING,
-        ];
-
-        // mark
-        for (let i = 0; i < roots.length; i++) {
-            this.mark(roots[i]);
-        }
-
-        // sweep
-        this.sweep();
-
-        if (this.free === -1) {
-            error("heap memory exhausted");
-        }
-    }
-
-    public mark(node: number) {
-        if (node >= this.heap_size) {
-            return;
-        }
-        if (this.is_unmarked(node)) {
-            this.heap_set_byte_at_offset(node, this.mark_bit, this.MARKED);
-            const num_of_children = this.heap_get_number_of_children(node);
-            for (let i = 0; i < num_of_children; i++) {
-                this.mark(this.heap_get_child(node, i));
-            }
-        }
-    }
-
-    public sweep() {
-        let v = this.HEAP_BOTTOM;
-        while (v < this.heap_size) {
-            if (this.is_unmarked(v)) {
-                this.free_node(v);
-            } else {
-                this.heap_set_byte_at_offset(v, this.mark_bit, this.UNMARKED);
-            }
-            v += this.node_size;
-        }
-    }
-
-    public is_unmarked(node: number) {
-        return (
-            this.heap_get_byte_at_offset(node, this.mark_bit) === this.UNMARKED
-        );
     }
 
     public free_node(node: number) {
@@ -122,7 +54,6 @@ export class Heap {
             error("limitation: nodes cannot be larger than 10 words");
         }
         if (this.free === -1) {
-            this.mark_sweep();
             if (this.free === -1) {
                 error("heap memory exhausted");
             }
@@ -349,10 +280,8 @@ export class Heap {
         env_address: any
     ): number {
         const old_size = this.heap_get_size(env_address);
-        this.ALLOCATING = [...this.ALLOCATING, frame_address, env_address];
 
         const new_env_address = this.heap_allocate_Environment(old_size);
-        this.ALLOCATING = [];
 
         let i: number;
         for (i = 0; i < old_size - 1; i++) {
@@ -434,7 +363,6 @@ export class Heap {
     }
 
     // address <-> TS value conversion
-
     public address_to_TS_value = (x: any): any =>
         this.is_Boolean(x)
             ? this.is_True(x)
