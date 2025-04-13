@@ -70,12 +70,20 @@ yarn build
 ```
 This produces a bundled file at dist/index.js that’s fully conductor-compatible.
 
-## Load Your Evaluator into SourceAcademy Playground
+## Load Your Evaluator into Source Academy Playground
 After running yarn build, if there are no problems, a `dist/index.js` file will be generated. This is the file that will be used to run your implementation of the language.
 
 This repository has been configured to automatically build your runner and deploy it to GitHub Pages upon pushing to the main branch on GitHub. You should be able to find it at:
+
 ```
 https://<your_github_username>.github.io/<repo_name>/index.js
 ```
+Here is where to put the link to use it on Source Academy:
+
+![Source Academy Instruction 1](img/source_academy_1.png)
+
+![Source Academy Instruction 2](img/source_academy_2.png)
+
+![Source Academy Instruction 3](img/source_academy_3.png)
 
 Enjoy!
