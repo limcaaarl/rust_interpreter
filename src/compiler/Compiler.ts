@@ -10,6 +10,8 @@ import {
     compile_time_environment_extend,
     getLiteralType,
     checkBorrow,
+    backupEnv,
+    restoreEnv,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -206,10 +208,13 @@ export class Compiler {
                 const body = findNodeByTag(ast, "Statements");
                 const locals = scan(body);
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
+                const backup = backupEnv(ce);
+                const extended_ce = compile_time_environment_extend(locals, ce);
                 this.compileChildren(
                     ast,
-                    compile_time_environment_extend(locals, ce)
+                    extended_ce
                 );
+                restoreEnv(extended_ce, backup);
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
@@ -308,6 +313,8 @@ export class Compiler {
                         break;
                     }
                 }
+
+                checkBorrow(ce, position, symVal, isMutable);
 
                 // Push the environment position to be used when creating the reference
                 instructions[wc++] = {
