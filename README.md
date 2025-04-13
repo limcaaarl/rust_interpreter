@@ -16,7 +16,7 @@ To set up this project, follow these steps:
 
 2. **Install Dependencies**
 
-   Ensure you have [Node.js](https://nodejs.org/) and [Corepack](https://nodejs.org/api/corepack.html) installed. Corepack is included with Node.js starting from version 16.10.0. To enable Corepack, run:
+   Ensure you have [Node.js](https://nodejs.org/) and [Corepack](https://nodejs.org/api/corepack.html) installed. Corepack is included with Node.js starting from version 14.19 / 16.9. To enable Corepack, run:
    ```bash
    corepack enable
    ```
