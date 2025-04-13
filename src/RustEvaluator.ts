@@ -39,7 +39,7 @@ export class RustEvaluator extends BasicEvaluator {
             const result = vm.run();
             
             // Send the result to the REPL
-            this.conductor.sendOutput(`Result: ${result}`);
+            this.conductor.sendOutput(`${result}`);
             // console.log(result);
 
             return result;
