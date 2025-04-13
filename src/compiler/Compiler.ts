@@ -9,6 +9,7 @@ import {
     compile_time_environment_position,
     compile_time_environment_extend,
     getLiteralType,
+    checkBorrow,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -65,8 +66,6 @@ export class Compiler {
                 // If type annotation exists
                 if (typeNode) {
                     this.compile(ast.children[5], ce);
-                } else { // If there is no type annotation
-                    this.compile(ast.children[3], ce);
                 }
 
                 instructions[wc++] = {
