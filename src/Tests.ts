@@ -106,6 +106,11 @@ async function runTests() {
         }
     };
 
+    console.log("\n=== VARIABLE DECLARATIONS AND SCOPING ===");
+    // =====================================================
+    // Tests for variable declarations and scoping
+    // =====================================================
+
     await runTest(
         `fn main() {
             let x = 5;
@@ -113,15 +118,6 @@ async function runTests() {
         }`,
         5,
         "Variable assignment"
-    );
-
-    await runTest(
-        `fn main() {
-            let x = 3;
-            x
-        }`,
-        3,
-        "Variable retrieval"
     );
 
     await runTest(
@@ -229,6 +225,31 @@ async function runTests() {
         3,
         "Shadowing in nested blocks"
     );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let x = "hello";
+            x
+        }`,
+        "hello",
+        "Shadowing with different types"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let x = 10;
+            x
+        }`,
+        10,
+        "Variable redeclaration in same scope"
+    );
+
+    console.log("\n=== ARITHMETIC OPERATIONS ===");
+    // =====================================================
+    // Tests for arithmetic operations
+    // =====================================================
 
     await runTest(
         `fn main() {
@@ -362,6 +383,28 @@ async function runTests() {
 
     await runTest(
         `fn main() {
+            10 / 0
+        }`,
+        "Division by zero",
+        "Division by zero",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            10 % 3
+        }`,
+        1,
+        "Modulo operation"
+    );
+
+    console.log("\n=== COMPARISON OPERATIONS ===");
+    // =====================================================
+    // Tests for comparison operations
+    // =====================================================
+
+    await runTest(
+        `fn main() {
             1 == 1
         }`,
         true,
@@ -407,6 +450,44 @@ async function runTests() {
         true,
         "Comparison operator: >="
     );
+
+    await runTest(
+        `fn main() {
+            "hello" == "hello"
+        }`,
+        true,
+        "String equality comparison"
+    );
+
+    await runTest(
+        `fn main() {
+            5 == "5"
+        }`,
+        "Cannot compare values of different types",
+        "Comparing different types",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            5 == 5.0
+        }`,
+        true,
+        "Comparing different numerical types (5 with 5.0)",
+    );
+
+    await runTest(
+        `fn main() {
+            5 == 5.1
+        }`,
+        false,
+        "Comparing different numerical types (5 with 5.1)",
+    );
+
+    console.log("\n=== CONTROL FLOW ===");
+    // =====================================================
+    // Tests for control flow
+    // =====================================================
 
     await runTest(
         `fn main() {
@@ -476,6 +557,46 @@ async function runTests() {
         2,
         "'Ternary' operator"
     );
+
+    await runTest(
+        `fn main() {
+            if true {
+                5
+            }
+        }`,
+        5,
+        "If without else"
+    );
+
+    await runTest(
+        `fn main() {
+            if true {
+            } else {
+                2
+            }
+        }`,
+        "Mismatched types in if/else expression",
+        "Empty if block",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            if 5 {
+                1
+            } else {
+                2
+            }
+        }`,
+        "If condition must be boolean",
+        "If condition not boolean",
+        true
+    );
+
+    console.log("\n=== FUNCTIONS ===");
+    // =====================================================
+    // Tests for functions
+    // =====================================================
 
     await runTest(
         `fn main() {
@@ -549,6 +670,126 @@ async function runTests() {
 
     await runTest(
         `fn main() {
+            get_five()
+        }
+
+        fn get_five() -> i32 {
+            5
+        }`,
+        5,
+        "Function with no parameters"
+    );
+
+    await runTest(
+        `fn main() {
+            do_nothing();
+            5
+        }
+
+        fn do_nothing() {
+            let x = 1;
+        }`,
+        5,
+        "Function without return type"
+    );
+
+    await runTest(
+        `fn main() {
+            early_return(true)
+        }
+
+        fn early_return(flag: bool) -> i32 {
+            if flag {
+                return 10;
+            }
+            20
+        }`,
+        10,
+        "Function with early return"
+    );
+
+    await runTest(
+        `fn main() {
+            non_existent()
+        }`,
+        "Unassigned name: non_existent",
+        "Calling non-existent function",
+        true
+    );
+
+    await runTest(
+        `// Function WITH explicit type declaration
+        fn is_even(n: i32) -> bool {
+            // Base case
+            if n == 0 {
+                return true;
+            }
+            // Recursive case - calls the implicitly typed function
+            is_odd(n - 1)
+        }
+
+        fn is_odd(n: i32) -> bool {
+            // Base case
+            if n == 0 {
+                false
+            } else {
+                // Recursive case - calls the explicitly typed function
+                is_even(n - 1)
+            }
+        }
+
+        fn main() {
+            is_even(4)
+        }
+    `,
+        true,
+        "Mutual recursion"
+    );
+
+    console.log("\n=== LOGICAL OPERATIONS ===");
+    // =====================================================
+    // Tests for logical operations
+    // =====================================================
+
+    await runTest(
+        `fn main() {
+            true && false
+        }`,
+        false,
+        "Logical AND operation"
+    );
+
+    await runTest(
+        `fn main() {
+            false || true
+        }`,
+        true,
+        "Logical OR operation"
+    );
+
+    await runTest(
+        `fn main() {
+            true & false
+        }`,
+        false,
+        "Bitwise AND operation"
+    );
+
+    await runTest(
+        `fn main() {
+            false | true
+        }`,
+        true,
+        "Bitwise OR operation"
+    );
+
+    console.log("\n=== UNARY OPERATIONS ===");
+    // =====================================================
+    // Tests for unary operations
+    // =====================================================
+
+    await runTest(
+        `fn main() {
             -1
         }`,
         -1,
@@ -562,6 +803,28 @@ async function runTests() {
         false,
         "Negation unary operator (boolean)"
     );
+
+    await runTest(
+        `fn main() {
+            !!true
+        }`,
+        true,
+        "Double negation (boolean)"
+    );
+
+    await runTest(
+        `fn main() {
+            !5
+        }`,
+        "Cannot apply ! to non-boolean type",
+        "Negation of non-boolean",
+        true
+    );
+
+    console.log("\n=== TYPE CHECKING ===");
+    // =====================================================
+    // Tests for type checking
+    // =====================================================
 
     runTypeCheckerTest(
         `fn main() {
@@ -649,6 +912,15 @@ async function runTests() {
         "Nested block type"
     );
 
+    runTypeCheckerTest(
+        `fn main() {
+            {}
+        }
+    `,
+        UNIT_TYPE,
+        "Empty block type"
+    );
+
     await runTest(
         `fn main() {
             if true {
@@ -663,66 +935,10 @@ async function runTests() {
         true
     );
 
-    await runTest(
-        `// Function WITH explicit type declaration
-        fn is_even(n: i32) -> bool {
-            // Base case
-            if n == 0 {
-                return true;
-            }
-            // Recursive case - calls the implicitly typed function
-            is_odd(n - 1)
-        }
-
-        fn is_odd(n: i32) -> bool {
-            // Base case
-            if n == 0 {
-                false
-            } else {
-                // Recursive case - calls the explicitly typed function
-                is_even(n - 1)
-            }
-        }
-
-        fn main() {
-            is_even(4)
-        }
-    `,
-        true,
-        "Mutual recursion"
-    );
-
-    await runTest(
-        `fn main() {
-            true && false
-        }`,
-        false,
-        "Logical AND operation"
-    );
-
-    await runTest(
-        `fn main() {
-            false || true
-        }`,
-        true,
-        "Logical OR operation"
-    );
-
-    await runTest(
-        `fn main() {
-            true & false
-        }`,
-        false,
-        "Logical AND operation"
-    );
-
-    await runTest(
-        `fn main() {
-            false | true
-        }`,
-        true,
-        "Logical OR operation"
-    );
+    console.log("\n=== TYPE MISMATCH ERRORS ===");
+    // =====================================================
+    // Tests for type mismatch errors
+    // =====================================================
 
     await runTest(
         `fn main() {
@@ -772,7 +988,6 @@ async function runTests() {
         "Assignment type mismatch (f32 to i32)",
         true
     );
-
 
     // I32_TYPE to other types
     await runTest(
@@ -979,6 +1194,11 @@ async function runTests() {
         true
     );
 
+    console.log("\n=== VALID TYPE ASSIGNMENTS ===");
+    // =====================================================
+    // Valid type assignments
+    // =====================================================
+
     // Same-type assignments (all should be valid)
     await runTest(
         `fn main() {
@@ -1050,6 +1270,7 @@ async function runTests() {
         "1.0 f32",
     );
 
+    console.log("\n=== MUTABLE VARIABLES ===");
     // =====================================================
     // Tests for mutable variables and reassignment
     // =====================================================
@@ -1112,6 +1333,30 @@ async function runTests() {
         true
     );
 
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            x = 10;
+            let x = 15;  // Shadows the mutable x
+            x
+        }`,
+        15,
+        "Shadowing a mutable variable"
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            x = 10;
+            x = 15;
+            x = 20;
+            x
+        }`,
+        20,
+        "Multiple reassignments"
+    );
+
+    console.log("\n=== REFERENCES AND DEREFERENCING ===");
     // =====================================================
     // Tests for references and dereferencing
     // =====================================================
@@ -1205,6 +1450,31 @@ async function runTests() {
         true
     );
 
+    await runTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            let z = &y;
+            **z
+        }`,
+        5,
+        "Reference to a reference"
+    );
+
+    await runTest(
+        `fn main() {
+            let x = &get_value();
+            *x
+        }
+        
+        fn get_value() -> i32 {
+            42
+        }`,
+        42,
+        "Reference to function result"
+    );
+
+    console.log("\n=== NESTED REFERENCES AND DEREFERENCING ===");
     // =====================================================
     // Tests for nested references and dereferencing
     // =====================================================
@@ -1232,6 +1502,20 @@ async function runTests() {
         "Assignment through double dereference"
     );
 
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let mut y = &mut x;
+            let mut z = &mut y;
+            let w = &mut z;
+            ***w = 15;
+            x
+        }`,
+        15,
+        "Triple nested references"
+    );
+
+    console.log("\n=== FUNCTION CALLS WITH REFERENCES ===");
     // =====================================================
     // Tests for function calls with references
     // =====================================================
@@ -1279,6 +1563,22 @@ async function runTests() {
         "Function with immutable reference parameter"
     );
 
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = get_ref(&mut x);
+            *y = 10;
+            x
+        }
+        
+        fn get_ref(n: &mut i32) -> &mut i32 {
+            n
+        }`,
+        10,
+        "Function returning reference"
+    );
+
+    console.log("\n=== MULTIPLE REFERENCES ===");
     // =====================================================
     // Tests for multiple references
     // =====================================================
@@ -1334,6 +1634,19 @@ async function runTests() {
         "Mutable borrows in different scopes"
     );
 
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y = &mut x;
+            let z = &x;  // Should fail - already mutably borrowed
+            *z
+        }`,
+        "Cannot borrow 'x' as immutable because it is already borrowed as mutable",
+        "Immutable borrow when already borrowed mutably",
+        true
+    );
+
+    console.log("\n=== TYPE CHECKING FOR REFERENCES ===");
     // =====================================================
     // Type checking for references
     // =====================================================
@@ -1366,6 +1679,27 @@ async function runTests() {
         }`,
         I32_TYPE,
         "Type of dereferenced value"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            let z = &y;
+            z
+        }`,
+        { kind: 'reference', targetType: { kind: 'reference', targetType: I32_TYPE, mutable: false }, mutable: false },
+        "Type of nested reference"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = true;
+            let y = &x;
+            y
+        }`,
+        { kind: 'reference', targetType: BOOL_TYPE, mutable: false },
+        "Reference to boolean type"
     );
 
     // Print summary
