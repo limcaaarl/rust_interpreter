@@ -1,8 +1,17 @@
 import { ParserRuleContext } from "antlr4ng";
 import { Instruction } from "./Instruction";
 import { LiteralExpressionContext } from "../parser/src/RustParser";
-import { BOOL_TYPE, CHAR_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "../typechecker/Types";
+import {
+    BOOL_TYPE,
+    CHAR_TYPE,
+    F32_TYPE,
+    I32_TYPE,
+    RustType,
+    STR_TYPE,
+    UNIT_TYPE,
+} from "../typechecker/Types";
 import { error } from "../Utils";
+import { Backup, Borrow, Variable } from "./Variable";
 
 // Recursively search for the first node with a given tag.
 export function findNodeByTag(ast: any, tag: string): any {
@@ -49,21 +58,21 @@ export function extractType(typeNode: any): RustType {
 }
 export function parseTypeString(typeStr: string): RustType {
     // Check for reference types
-    if (typeStr.startsWith('&')) {
+    if (typeStr.startsWith("&")) {
         let mutable = false;
         let targetTypeStr = typeStr.substring(2); // Remove '& '
-        
+
         // Check for mut keyword
-        if (targetTypeStr.startsWith('mut ')) {
+        if (targetTypeStr.startsWith("mut ")) {
             mutable = true;
             targetTypeStr = targetTypeStr.substring(4); // Remove 'mut '
         }
-        
+
         // Parse the target type
         const targetType = parseTypeString(targetTypeStr);
-        return { kind: 'reference', targetType, mutable };
+        return { kind: "reference", targetType, mutable };
     }
-    
+
     // Handle primitive types
     switch (typeStr) {
         case "i32":
@@ -144,9 +153,13 @@ export function getFunctionParams(functionNode: any): FunctionParam[] {
         if (child.tag !== "FunctionParam") continue;
 
         if (!paramsAreTyped(child)) {
-            const funcName = extractTerminalValue(findNodeByTag(functionNode, 'Identifier'));
-            error(`Function ${funcName} has parameters that are not properly typed`);
-        };
+            const funcName = extractTerminalValue(
+                findNodeByTag(functionNode, "Identifier")
+            );
+            error(
+                `Function ${funcName} has parameters that are not properly typed`
+            );
+        }
 
         const identifierNode = findNodeByTag(child, "Identifier");
         const typeNode = findNodeByTag(child, "Type_");
@@ -162,7 +175,10 @@ export function getFunctionParams(functionNode: any): FunctionParam[] {
 }
 
 function paramsAreTyped(functionParamNode: any): boolean {
-    const patternNode = findNodeByTag(functionParamNode, "FunctionParamPattern");
+    const patternNode = findNodeByTag(
+        functionParamNode,
+        "FunctionParamPattern"
+    );
     if (!patternNode || !(patternNode.children?.length === 3)) {
         return false;
     }
@@ -178,17 +194,97 @@ export function compile_time_environment_position(env, x) {
         }
         frame_index--;
     }
+
+    return undefined;
 }
 
 export function value_index(frame, x) {
     for (let i = 0; i < frame.length; i++) {
-        if (frame[i] === x) return i;
+        if (frame[i].name === x) return i;
     }
     return -1;
 }
 
-export function compile_time_environment_extend (vs, e) {
+export function compile_time_environment_extend(vs, e) {
+    const newFrame: Variable[] = vs.map((v) => ({
+        name: v,
+        isOwned: true,
+        borrow: Borrow.None,
+    }));
     const newEnv = [...e];
-    newEnv.push(vs);
+    newEnv.push(newFrame);
     return newEnv;
+}
+
+// Ownership Borrow
+export function checkVarUsage(ce, varName) {
+    const pos = compile_time_environment_position(ce, varName);
+    if (!pos) {
+        throw new Error(`Variable ${varName} is not declared.`);
+    }
+    const varInfo: Variable = ce[pos[0]][pos[1]];
+    if (varInfo.isOwned === false) {
+        throw new Error(
+            `Variable ${varName} has been moved and cannot be used.`
+        );
+    }
+}
+
+export function checkBorrow(ce, position, symVal, isMutable) {
+    // the variable being borrowed
+    const variableInfo: Variable = ce[position[0]][position[1]];
+
+    if (isMutable) {
+        // mutable borrow
+        // can only have 1 borrower
+        if (variableInfo.borrow == Borrow.Immutable) {
+            throw new Error(
+                `Cannot borrow '${symVal}' as mutable because it is also borrowed as ${variableInfo.borrow}.`
+            );
+        } else if (variableInfo.borrow == Borrow.Mutable) {
+            throw new Error(
+                `Cannot borrow '${symVal}' as mutable more than once`
+            );
+        }
+        variableInfo.borrow = Borrow.Mutable;
+    } else {
+        // immutable borrow
+        if (variableInfo.borrow === Borrow.Mutable) {
+            throw new Error(
+                `Cannot borrow '${symVal}' as immutable because it is also borrowed as mutable.`
+            );
+        }
+        if (variableInfo.borrow === Borrow.None) {
+            variableInfo.borrow = Borrow.Immutable;
+            variableInfo.immCount = 1;
+        } else if (variableInfo.borrow === Borrow.Immutable) {
+            variableInfo.immCount = (variableInfo.immCount || 0) + 1;
+        }
+    }
+}
+
+export function backupEnv(env: Variable[][]): Backup {
+    const backup: Backup = new Map();
+    for (let i = 0; i < env.length; i++) {
+        for (const varInfo of env[i]) {
+            backup.set(varInfo.name, {
+                borrow: varInfo.borrow,
+                isOwned: varInfo.isOwned,
+                immCount: varInfo.immCount || 0,
+            });
+        }
+    }
+    return backup;
+}
+
+export function restoreEnv(env: Variable[][], backup: Backup): void {
+    for (let i = 0; i < env.length; i++) {
+        for (const varInfo of env[i]) {
+            const saved = backup.get(varInfo.name);
+            if (saved !== undefined) {
+                varInfo.borrow = saved.borrow;
+                varInfo.immCount = saved.immCount;
+            }
+        }
+    }
 }
