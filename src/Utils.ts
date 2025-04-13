@@ -96,29 +96,6 @@ export function is_unassigned(v: any): boolean {
         v.tag === 'unassigned'
 }
 
-// v2 is popped before v1
-export function apply_binop(op: string, v2: any, v1: any): any {
-    const binop_microcode = {
-        '|': (x, y) => x || y,
-        '&': (x, y) => x && y,
-        '||': (x, y) => x || y,
-        '&&': (x, y) => x && y,
-        '+': (x, y) => x + y,
-        '*': (x, y) => x * y,
-        '-': (x, y) => x - y,
-        '/': (x, y) => x / y,
-        '%': (x, y) => x % y,
-        '<': (x, y) => x < y,
-        '<=': (x, y) => x <= y,
-        '>=': (x, y) => x >= y,
-        '>': (x, y) => x > y,
-        '==': (x, y) => x === y,
-        '!=': (x, y) => x !== y
-    };
-
-    return binop_microcode[op](v1, v2);
-}
-
 export function is_boolean(x: any): boolean {
     return x === true || x === false;
 }
