@@ -148,33 +148,6 @@ export function generateJsonAst(code: string) {
     return astJson
 }
 
-/** Given a crate node, return the main function node */
-export function getMainFunction(crateNode: any) {
-    function traverse(node: any): any {
-        if (node.tag === "Function_") {
-            // Check if the function name is "main"
-            const identifierNode = node.children?.find(child => child.tag === "Identifier");
-            const mainIdentifier = identifierNode?.children?.find(child => child.val === "main");
-            if (mainIdentifier) {
-                return node; // Return the "main" function node
-            }
-        }
-
-        // Recursively traverse children
-        if (node.children) {
-            for (const child of node.children) {
-                const result = traverse(child);
-                if (result) {
-                    return result;
-                }
-            }
-        }
-        return null; // Return null if no "main" function is found
-    }
-
-    return traverse(crateNode);
-}
-
 // To check reference types as objects are compared by reference, not by value
 export function deepEqual(obj1, obj2) {
     if (obj1 === obj2) return true; // Same reference or primitive value

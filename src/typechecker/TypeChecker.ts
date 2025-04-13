@@ -1,5 +1,4 @@
 import { extractTerminalValue, findNodeByTag, getFunctionParams, getReturnType, parseTypeString } from "../compiler/CompilerHelper";
-import { getMainFunction } from "../Utils";
 import { TypeEnvironment } from "./TypeEnvironment";
 import { BOOL_TYPE, CHAR_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./Types";
 
@@ -89,15 +88,18 @@ export class TypeChecker {
         }
 
         // Phase 2: Check all function bodies
+        let mainFunction;
         for (const func of functionNodes) {
             const funcName = extractTerminalValue(findNodeByTag(func, 'Identifier'));
-            if (funcName !== 'main') {  // Skip main, we'll handle it separately
-                this.checkNode(func);
+            if (funcName === 'main') {  // Skip main, we'll handle it separately
+                mainFunction = func;
+                continue;
             }
+
+            this.checkNode(func);
         }
 
         // Special handling for main function
-        const mainFunction = getMainFunction(node);
         if (!mainFunction) {
             this.errors.push('No main function found');
             return UNIT_TYPE;
@@ -148,7 +150,7 @@ export class TypeChecker {
     private checkLetStatement(node: any): RustType {
         const nameNode = findNodeByTag(node, 'Identifier');
         const name = extractTerminalValue(nameNode);
-        
+
         // Check if variable is declared as mutable
         const isMutable = this.hasMutKeyword(node);
 
@@ -185,11 +187,11 @@ export class TypeChecker {
         // Find the PatternNoTopAlt node which contains IdentifierPattern
         const patternNode = findNodeByTag(node, "PatternNoTopAlt");
         if (!patternNode) return false;
-        
+
         // Find the IdentifierPattern node that might contain 'mut'
         const identifierPatternNode = findNodeByTag(patternNode, "IdentifierPattern");
         if (!identifierPatternNode) return false;
-        
+
         // Check if any of the children of IdentifierPattern is the 'mut' keyword
         return identifierPatternNode.children.some(
             (child: any) => child.tag === "Terminal" && child.val === "mut"
@@ -404,27 +406,27 @@ export class TypeChecker {
     private checkAssignmentExpression(node: any): RustType {
         const leftNode = node.children[0];
         const rightNode = node.children[2];
-        
+
         // Handle different types of left-hand sides
         if (leftNode.tag === 'PathExpression_') {
             // Direct variable assignment (x = value)
             const varName = extractTerminalValue(leftNode);
             const varType = this.env.lookup(varName);
-            
+
             if (!varType) {
                 this.errors.push(`Cannot assign to undeclared variable '${varName}'`);
                 return UNIT_TYPE;
             }
-            
+
             // Check if the variable is mutable
             if (!this.env.isMutable(varName)) {
                 this.errors.push(`Cannot assign to immutable variable '${varName}'.`);
                 return UNIT_TYPE;
             }
-            
+
             // Check that the right-hand side expression is compatible with the variable type
             const rightType = this.checkNode(rightNode);
-            
+
             if (!this.typesMatch(rightType, varType)) {
                 this.errors.push(`Cannot assign value of type '${this.typeToString(rightType)}' to variable '${varName}' of type '${this.typeToString(varType)}'`);
             }
@@ -433,23 +435,23 @@ export class TypeChecker {
             // First check the type of the reference
             const refNode = leftNode.children[1]; // Get the reference expression
             const refType = this.checkNode(refNode);
-            
+
             // Make sure it's a reference type
             if (refType.kind !== 'reference') {
                 this.errors.push(`Cannot dereference non-reference type: '${this.typeToString(refType)}'`);
                 return UNIT_TYPE;
             }
-            
+
             // Check if the reference is mutable
             if (!refType.mutable) {
                 this.errors.push(`Cannot assign through an immutable reference.`);
                 return UNIT_TYPE;
             }
-            
+
             // Check type compatibility between right value and target type
             const targetType = refType.targetType;
             const rightType = this.checkNode(rightNode);
-            
+
             if (!this.typesMatch(rightType, targetType)) {
                 this.errors.push(`Cannot assign value of type '${this.typeToString(rightType)}' to a reference of type '${this.typeToString(refType)}'`);
             }
@@ -457,7 +459,7 @@ export class TypeChecker {
             this.errors.push('Left side of assignment must be a variable or a dereferenced reference');
             return UNIT_TYPE;
         }
-        
+
         return UNIT_TYPE;
     }
 
@@ -471,11 +473,11 @@ export class TypeChecker {
                 break;
             }
         }
-        
+
         // Get the expression being referenced
         const expressionNode = node.children[node.children.length - 1];
         const expressionType = this.checkNode(expressionNode);
-        
+
         // For mutable references, we need to check that the target is mutable
         if (isMutable && expressionNode.tag === 'PathExpression_') {
             const varName = extractTerminalValue(expressionNode);
@@ -483,7 +485,7 @@ export class TypeChecker {
                 this.errors.push(`Cannot create mutable reference to immutable variable '${varName}'`);
             }
         }
-        
+
         // Create and return the reference type
         return { kind: 'reference', targetType: expressionType, mutable: isMutable };
     }
@@ -493,13 +495,13 @@ export class TypeChecker {
         // Get the operand expression (should be a reference)
         const operandNode = node.children[1];
         const operandType = this.checkNode(operandNode);
-        
+
         // Check that we're dereferencing a reference type
         if (operandType.kind !== 'reference') {
             this.errors.push(`Cannot dereference non-reference type: '${this.typeToString(operandType)}'`);
             return UNIT_TYPE;
         }
-        
+
         // Return the target type of the reference
         return operandType.targetType;
     }
@@ -572,7 +574,7 @@ export class TypeChecker {
                 actual.params.every((t, i) => this.typesMatch(t, expected.params[i]))
             );
         }
-        
+
         // Handle reference types
         if (actual.kind === 'reference' && expected.kind === 'reference') {
             // For references, check both target types and mutability constraints
