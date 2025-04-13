@@ -430,6 +430,8 @@ export class Heap {
             return this.is_True(x) ? true : false;
         } else if (this.is_Number(x)) {
             return this.heap_get(x + 1);
+        } else if (this.is_String(x)) {
+            return this.heap_get_string(x);
         } else if (this.is_Undefined(x)) {
             return undefined;
         } else if (this.is_Unassigned(x)) {
