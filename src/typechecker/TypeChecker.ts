@@ -274,11 +274,10 @@ export class TypeChecker {
     private checkComparisonExpression(node: any): RustType {
         const leftType = this.checkNode(node.children[0]);
         const rightType = this.checkNode(node.children[2]);
-        const operator = extractTerminalValue(node.children[1]);
 
         // All comparison operators return boolean
         if (!this.typesMatchForComparison(leftType, rightType)) {
-            this.errors.push(`Cannot compare ${this.typeToString(leftType)} with ${this.typeToString(rightType)}`);
+            this.errors.push(`Cannot compare values of different types (${this.typeToString(leftType)} with ${this.typeToString(rightType)})`);
         }
 
         return BOOL_TYPE;
