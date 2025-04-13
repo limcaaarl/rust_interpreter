@@ -86,6 +86,7 @@ function testTypeChecker(code: string, expected: RustType, testName: string) {
 async function runTests() {
     let testsPassed = 0;
     let testsFailed = 0;
+    let failedTestNames = []; // Add array to track failed test names
 
     // Helper function to run a test and update counters
     async function runTest(code: string, expected: any, testName: string, expectError: boolean = false) {
@@ -94,6 +95,7 @@ async function runTests() {
             testsPassed++;
         } else {
             testsFailed++;
+            failedTestNames.push(testName); // Record failed test name
         }
     };
 
@@ -103,6 +105,7 @@ async function runTests() {
             testsPassed++;
         } else {
             testsFailed++;
+            failedTestNames.push(testName); // Record failed test name
         }
     };
 
@@ -1292,7 +1295,7 @@ async function runTests() {
             x
         }`,
         "Cannot assign to immutable variable",
-        "Reassigning immutable variable (should fail)",
+        "Reassigning immutable variable",
         true
     );
 
@@ -1390,7 +1393,7 @@ async function runTests() {
             x
         }`,
         "Cannot assign through an immutable reference",
-        "Assignment through immutable reference (should fail)",
+        "Assignment through immutable reference",
         true
     );
 
@@ -1591,7 +1594,7 @@ async function runTests() {
             *y + *z
         }`,
         "Cannot borrow 'x' as mutable more than once",
-        "Multiple mutable borrows (should fail)",
+        "Multiple mutable borrows",
         true
     );
 
@@ -1706,6 +1709,14 @@ async function runTests() {
     const totalTests = testsPassed + testsFailed;
     console.log(`\nSummary:`);
     console.log(`Passed: ${testsPassed} / ${totalTests}`);
+    
+    // Print failed test names
+    if (failedTestNames.length > 0) {
+        console.log(`\nFailed Tests:`);
+        failedTestNames.forEach(name => {
+            console.log(`- ${name}`);
+        });
+    }
 }
 
 runTests().then(() => customLink.terminate());
