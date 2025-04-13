@@ -102,7 +102,7 @@ export class Compiler {
                 const callParamsNode = findNodeByTag(ast, "CallParams");
                 instructions[wc++] = {
                     tag: "CALL",
-                    arity: Math.floor(callParamsNode.children.length / 2) + 1,
+                    arity: callParamsNode ? Math.floor(callParamsNode.children.length / 2) + 1 : 0,
                 };
                 break;
             }
