@@ -28,20 +28,14 @@ async function main() {
 
     const code = `
         fn main() {
-            1
-        }
-
-        fn test() {
+            let x = "Hello World!";
+            x
         }
     `;
 
     try {
-        // const result = await evaluator.evaluateChunk(code);
-
-        const jsonAst = generateJsonAst(code);
-        console.log(JSON.stringify(jsonAst, null, 2));
-        const result = new TypeChecker().checkNode(jsonAst);
-        console.log('Result:', result);
+        const result = await evaluator.evaluateChunk(code);
+        console.log(result);
     } catch (error) {
         console.error(error);
     }
