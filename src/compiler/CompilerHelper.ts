@@ -42,28 +42,34 @@ export function extractTerminalValues(ast: any): any[] {
     return values;
 }
 
+export function extractTypeString(typeNode: any): string {
+    const terminalVals = extractTerminalValues(typeNode);
+    return terminalVals.join(" ");
+}
+
 export function extractType(typeNode: any): RustType {
     const terminalVals = extractTerminalValues(typeNode);
     const typeStr = terminalVals.join(" ");
     return parseTypeString(typeStr);
 }
+
 export function parseTypeString(typeStr: string): RustType {
     // Check for reference types
     if (typeStr.startsWith('&')) {
         let mutable = false;
         let targetTypeStr = typeStr.substring(2); // Remove '& '
-        
+
         // Check for mut keyword
         if (targetTypeStr.startsWith('mut ')) {
             mutable = true;
             targetTypeStr = targetTypeStr.substring(4); // Remove 'mut '
         }
-        
+
         // Parse the target type
         const targetType = parseTypeString(targetTypeStr);
         return { kind: 'reference', targetType, mutable };
     }
-    
+
     // Handle primitive types
     switch (typeStr) {
         case "i32":
@@ -132,7 +138,7 @@ export function getReturnType(ast: any): string {
     if (!returnNode) return "";
     const typeNode = findNodeByTag(returnNode, "Type_");
 
-    return typeNode ? extractTerminalValue(typeNode) : "";
+    return typeNode ? extractTypeString(typeNode) : "";
 }
 
 export function getFunctionParams(functionNode: any): FunctionParam[] {
@@ -187,7 +193,7 @@ export function value_index(frame, x) {
     return -1;
 }
 
-export function compile_time_environment_extend (vs, e) {
+export function compile_time_environment_extend(vs, e) {
     const newEnv = [...e];
     newEnv.push(vs);
     return newEnv;
