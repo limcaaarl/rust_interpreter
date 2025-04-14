@@ -89,8 +89,9 @@ export function parseTypeString(typeStr: string): RustType {
 
 export function displayInstructions(instructions: Instruction[]): void {
     console.log("========== Instructions ==========");
+    let i = 0;
     for (const instruction of instructions) {
-        console.log(instruction);
+        console.log(`[${i++}]`, instruction);
     }
 }
 
