@@ -337,11 +337,6 @@ export class Compiler {
 
     private typeCheck(ast: any): boolean {
         const valid = this.typeChecker.check(ast);
-        // if (!valid) {
-        //     const errors = this.typeChecker.getErrors();
-        //     console.error('Type checking errors:');
-        //     errors.forEach(err => console.error(`- ${err}`));
-        // }
         return valid;
     }
 
