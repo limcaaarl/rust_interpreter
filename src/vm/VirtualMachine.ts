@@ -35,13 +35,21 @@ export class VirtualMachine {
 
     private microcode(instr: Instruction): void {
         switch (instr.tag) {
-            case "POP":
+            case "DROP": {
+                const pos = instr.pos;
+                const heapAddress = this.heap.heap_get_Environment_value(this.E, pos);
+                this.heap.free_node(heapAddress);
+                break;
+            }
+            case "POP": {
                 this.OS.pop();
                 break;
-            case "LDC":
+            }
+            case "LDC": {
                 // this.OS.push(instr.val);
                 this.OS.push(this.heap.TS_value_to_address(instr.val));
                 break;
+            }
             case "LD": {
                 const val = this.heap.heap_get_Environment_value(this.E, instr.pos);
                 if (this.heap.is_Unassigned(val)) {

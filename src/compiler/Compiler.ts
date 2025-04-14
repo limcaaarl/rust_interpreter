@@ -14,6 +14,7 @@ import {
     restoreEnv,
     checkVarUsage,
     extractTerminalValues,
+    generateDropInstructions,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -23,6 +24,7 @@ import { TypeChecker } from "../typechecker/TypeChecker";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
+let resultIdx = [];
 
 const global_compile_environment = []
 
@@ -159,7 +161,7 @@ export class Compiler {
                 // Params are set to be the owner of the passed values by default
                 const extended_ce = compile_time_environment_extend(
                     paramNames,
-                    ce
+                    ce,
                 );
 
                 this.compile(
@@ -252,6 +254,14 @@ export class Compiler {
                 const backup = backupEnv(ce);
                 const extended_ce = compile_time_environment_extend(locals, ce);
                 this.compileChildren(ast, extended_ce);
+
+                const frameIdx = extended_ce.length - 1;
+                const localFrame = extended_ce[frameIdx];
+                const dropInstructions = generateDropInstructions(localFrame, frameIdx, resultIdx);
+                dropInstructions.forEach(instr => {
+                  instructions[wc++] = instr;
+                });
+                
                 restoreEnv(extended_ce, backup);
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
@@ -422,11 +432,13 @@ export class Compiler {
             );
         }
     }
-
+    
     private compileStatementsChildren(ast: any, ce: any): void {
         if (ast.children && ast.children.length > 0) {
             ast.children.forEach((child: any) => {
                 if (child.tag == "PathExpression_") {
+                    const symVal = extractTerminalValue(child);
+                    resultIdx = compile_time_environment_position(ce, symVal);
                     this.compile(child, ce, true);
                 } else {
                     this.compile(child, ce, false);

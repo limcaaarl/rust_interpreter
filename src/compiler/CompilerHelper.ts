@@ -311,3 +311,22 @@ export function usesVariable(ast: any, varName: string): boolean {
     }
     return false;
 }
+
+export function generateDropInstructions(frame: any[],frameIdx, resultIdx): Instruction[] {
+    const dropInstrs: Instruction[] = [];
+    // This contains the frame for the main function
+    // We do not drop this as it is required for evaluating the whole main function
+    // Block containing the result expression should also not be dropped
+    if(frameIdx == 2) return dropInstrs;
+
+    for (let i = 0; i < frame.length; i++) {
+        // TODO: Not a very good implementation as we can have multiple blocks
+        // We only really need to not drop the value that returns in main
+        // skips statements that return value
+        if (frameIdx == resultIdx[0] && i == resultIdx[1]) continue;
+        // console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
+        dropInstrs.push({ tag: "DROP", pos: [frameIdx, i] });
+    }
+    return dropInstrs;
+}
+  

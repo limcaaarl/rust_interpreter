@@ -14,6 +14,7 @@ export type Instruction =
     | { tag: "ENTER_SCOPE"; num: number }
     | { tag: "EXIT_SCOPE" }
     | { tag: "POP" }
+    | { tag: "DROP"; pos: any }
     | { tag: "REF"; pos: any; mutable: boolean } // Create a reference to a value
     | { tag: "DEREF" } // Dereference a reference
     | { tag: "UPDATE_REF" } // Update a reference's value
