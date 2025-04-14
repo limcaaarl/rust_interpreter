@@ -12,6 +12,8 @@ import {
     checkBorrow,
     backupEnv,
     restoreEnv,
+    checkVarUsage,
+    extractTerminalValues,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -33,7 +35,7 @@ export class Compiler {
                 return {
                     tag: "Terminal",
                     val: getLiteralVal(node.parent),
-                    type: getLiteralType(node.parent)
+                    type: getLiteralType(node.parent),
                 };
             } else {
                 return {
@@ -54,25 +56,31 @@ export class Compiler {
         return null;
     }
 
-    private compile(ast: any, ce: any): void {
+    private compile(ast: any, ce: any, isCheckOwnership: boolean): void {
         // console.log(ast.tag);
         switch (ast.tag) {
             case "LetStatement": {
                 const letNameNode = findNodeByTag(ast, "Identifier");
                 const letName = extractTerminalValue(letNameNode);
 
+                // set LHS to be the owner
+                const pos = compile_time_environment_position(ce, letName);
+                ce[pos[0]][pos[1]].isOwned = true;
+
+                // Compilation of RHS will lead to RHS being checked if it's owned or not in path expression
+                // so we set true here in the arguments this.compile()
                 // Compile the right hand side of the '='
-                this.compile(ast.children[3], ce);
-                const typeNode = findNodeByTag(ast, 'Type_');
+                this.compile(ast.children[3], ce, true);
+                const typeNode = findNodeByTag(ast, "Type_");
 
                 // If type annotation exists
                 if (typeNode) {
-                    this.compile(ast.children[5], ce);
+                    this.compile(ast.children[5], ce, false);
                 }
 
                 instructions[wc++] = {
                     tag: "ASSIGN",
-                    pos: compile_time_environment_position(ce, letName),
+                    pos: pos,
                 };
 
                 // Clear the assigned value from OS
@@ -91,6 +99,20 @@ export class Compiler {
             }
             case "PathExpression_": {
                 const symVal = extractTerminalValue(ast);
+
+                // Only let, assignments, and function calls will check for ownership
+                if (isCheckOwnership) {
+                    checkVarUsage(ce, symVal);
+
+                    const position = compile_time_environment_position(
+                        ce,
+                        symVal
+                    );
+
+                    // move ownership
+                    ce[position[0]][position[1]].isOwned = false;
+                }
+
                 instructions[wc++] = {
                     tag: "LD",
                     sym: symVal,
@@ -101,6 +123,17 @@ export class Compiler {
             case "CallExpression": {
                 this.compileChildren(ast, ce);
                 const callParamsNode = findNodeByTag(ast, "CallParams");
+
+                // all variables passed as arguments will have its ownership transferred to the arguments of the function
+                let paramNames = extractTerminalValues(callParamsNode, true);
+
+                paramNames.forEach((name) => {
+                    if (name !== "," && typeof name === "string") {
+                        const pos = compile_time_environment_position(ce, name);
+                        if (pos) ce[pos[0]][pos[1]].isOwned = false;
+                    }
+                });
+
                 instructions[wc++] = {
                     tag: "CALL",
                     arity: Math.floor(callParamsNode.children.length / 2) + 1,
@@ -113,7 +146,7 @@ export class Compiler {
                 );
                 if (funcName == "main") mainAddr = wc;
                 const funcParams = getFunctionParams(ast);
-                const paramNames = funcParams.map(param => param.name);
+                const paramNames = funcParams.map((param) => param.name);
                 instructions[wc++] = {
                     tag: "LDF",
                     arity: funcParams.length,
@@ -122,19 +155,27 @@ export class Compiler {
                 };
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
-                const extended_ce = compile_time_environment_extend(paramNames, ce);
+
+                // Params are set to be the owner of the passed values by default
+                const extended_ce = compile_time_environment_extend(
+                    paramNames,
+                    ce
+                );
+
                 this.compile(
                     findNodeByTag(ast, "BlockExpression"),
-                    extended_ce
+                    extended_ce,
+                    false
                 );
-                // TODO: Not sure if we want to return () implicitly as this would result in main evaluating to '()'
-                // Rust returns `()` implicitly for functions that do not return any value
-                // instructions[wc++] = { tag: "LDC", val: "()" };
+
                 instructions[wc++] = { tag: "RESET" };
                 instructions[goto_wc].addr = wc;
                 instructions[wc++] = {
                     tag: "ASSIGN",
-                    pos: compile_time_environment_position(extended_ce, funcName),
+                    pos: compile_time_environment_position(
+                        extended_ce,
+                        funcName
+                    ),
                 };
                 instructions[wc++] = { tag: "POP" };
                 break;
@@ -144,21 +185,21 @@ export class Compiler {
 
                 // compile the rest of the expression
                 for (let i = 1; i < ast.children.length; i++) {
-                    this.compile(ast.children[i], ce);
+                    this.compile(ast.children[i], ce, false);
                 }
                 instructions[wc++] = { tag: "RESET" };
                 break;
             }
             case "LazyBooleanExpression": {
-                this.compile(ast.children[0], ce); // left
-                this.compile(ast.children[2], ce); // right
+                this.compile(ast.children[0], ce, false); // left
+                this.compile(ast.children[2], ce, false); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "ComparisonExpression": {
-                this.compile(ast.children[0], ce); // left
-                this.compile(ast.children[2], ce); // right
+                this.compile(ast.children[0], ce, false); // left
+                this.compile(ast.children[2], ce, false); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
@@ -168,13 +209,13 @@ export class Compiler {
                 const loop_start = wc;
 
                 const pred = ast.children[1];
-                this.compile(pred, ce);
+                this.compile(pred, ce, false);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const body = ast.children[2];
-                this.compile(body, ce);
+                this.compile(body, ce, false);
 
                 instructions[wc++] = { tag: "POP" };
                 instructions[wc++] = {
@@ -188,16 +229,16 @@ export class Compiler {
                 const locals = scan(ast);
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
                 const extended_ce = compile_time_environment_extend(locals, ce);
-                this.compileChildren(
-                    ast,
-                    extended_ce
-                );
+                this.compileChildren(ast, extended_ce);
                 // call main function
                 if (mainAddr != -1) {
                     instructions[wc++] = {
                         tag: "LD",
                         sym: "main",
-                        pos: compile_time_environment_position(extended_ce, "main"),
+                        pos: compile_time_environment_position(
+                            extended_ce,
+                            "main"
+                        ),
                     };
                     instructions[wc++] = { tag: "CALL", arity: 0 };
                 }
@@ -210,23 +251,24 @@ export class Compiler {
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
                 const backup = backupEnv(ce);
                 const extended_ce = compile_time_environment_extend(locals, ce);
-                this.compileChildren(
-                    ast,
-                    extended_ce
-                );
+                this.compileChildren(ast, extended_ce);
                 restoreEnv(extended_ce, backup);
                 instructions[wc++] = { tag: "EXIT_SCOPE" };
                 break;
             }
+            case "Statements": {
+                this.compileStatementsChildren(ast, ce);
+                break;
+            }
             case "IfExpression": {
                 const pred = ast.children[1];
-                this.compile(pred, ce);
+                this.compile(pred, ce, false);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const cons = ast.children[2];
-                this.compile(cons, ce);
+                this.compile(cons, ce, false);
 
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
@@ -236,7 +278,7 @@ export class Compiler {
                     const alternative_address = wc;
                     instructions[jof_wc].addr = alternative_address;
                     const alt = ast.children[4];
-                    this.compile(alt, ce);
+                    this.compile(alt, ce, false);
                 } else {
                     instructions[jof_wc].addr = wc;
                 }
@@ -244,20 +286,20 @@ export class Compiler {
                 break;
             }
             case "ArithmeticOrLogicalExpression": {
-                this.compile(ast.children[0], ce); // left
-                this.compile(ast.children[2], ce); // right
+                this.compile(ast.children[0], ce, false); // left
+                this.compile(ast.children[2], ce, false); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "NegationExpression": {
-                this.compile(ast.children[1], ce);
+                this.compile(ast.children[1], ce, false);
                 const unop = extractTerminalValue(ast.children[0]);
                 instructions[wc++] = { tag: "UNOP", sym: unop };
                 break;
             }
             case "ExpressionStatement": {
-                this.compile(ast.children[0], ce);
+                this.compile(ast.children[0], ce, false);
                 if (
                     ast.children[1] &&
                     extractTerminalValue(ast.children[1]) === ";"
@@ -270,39 +312,48 @@ export class Compiler {
                 // Get the left-hand side of the assignment
                 const leftNode = ast.children[0];
 
-                if (leftNode.tag === 'PathExpression_') {
+                if (leftNode.tag === "PathExpression_") {
                     // Direct variable assignment (x = value)
                     // Compile the right hand side expression first
-                    this.compile(ast.children[2], ce);
+                    this.compile(ast.children[2], ce, true);
 
                     const varName = extractTerminalValue(leftNode);
+                    const position = compile_time_environment_position(
+                        ce,
+                        varName
+                    );
 
+                    ce[position[0]][position[1]].isOwned = true;
                     instructions[wc++] = {
                         tag: "ASSIGN",
-                        pos: compile_time_environment_position(ce, varName),
+                        pos: position,
                     };
-                } else if (leftNode.tag === 'DereferenceExpression') {
+                } else if (leftNode.tag === "DereferenceExpression") {
                     // Assignment through dereferenced reference (*x = value)
 
                     // First compile the reference expression (what *x points to)
-                    this.compile(leftNode.children[1], ce);
+                    this.compile(leftNode.children[1], ce, true);
 
                     // Then compile the right-hand side expression (the value to assign)
-                    this.compile(ast.children[2], ce);
+                    this.compile(ast.children[2], ce, true);
 
                     // Then update the value at the reference
                     // Now stack has [ref_address, value]
                     instructions[wc++] = { tag: "UPDATE_REF" };
                 } else {
                     // Unsupported left-hand side type
-                    throw new Error(`Unsupported assignment target: ${leftNode.tag}`);
+                    throw new Error(
+                        `Unsupported assignment target: ${leftNode.tag}`
+                    );
                 }
                 break;
             }
             case "BorrowExpression": {
                 // For creating a reference (&value or &mut value)
                 // We need to pass the variable position, not just its value
-                const symVal = extractTerminalValue(ast.children[ast.children.length - 1]);
+                const symVal = extractTerminalValue(
+                    ast.children[ast.children.length - 1]
+                );
                 const position = compile_time_environment_position(ce, symVal);
 
                 // Check if this is a mutable reference
@@ -320,14 +371,14 @@ export class Compiler {
                 instructions[wc++] = {
                     tag: "REF",
                     pos: position,
-                    mutable: isMutable
+                    mutable: isMutable,
                 };
                 break;
             }
             case "DereferenceExpression": {
                 // Get the reference expression
                 const referenceExpr = ast.children[1];
-                this.compile(referenceExpr, ce);
+                this.compile(referenceExpr, ce, false);
 
                 // Add DEREF instruction
                 instructions[wc++] = { tag: "DEREF" };
@@ -359,14 +410,28 @@ export class Compiler {
 
         wc = 0;
         instructions = [];
-        this.compile(ast, global_compile_environment);
+        this.compile(ast, global_compile_environment, false);
         instructions[wc++] = { tag: "DONE" };
         return instructions;
     }
 
     private compileChildren(ast: any, ce: any): void {
         if (ast.children && ast.children.length > 0) {
-            ast.children.forEach((child: any) => this.compile(child, ce));
+            ast.children.forEach((child: any) =>
+                this.compile(child, ce, false)
+            );
+        }
+    }
+
+    private compileStatementsChildren(ast: any, ce: any): void {
+        if (ast.children && ast.children.length > 0) {
+            ast.children.forEach((child: any) => {
+                if (child.tag == "PathExpression_") {
+                    this.compile(child, ce, true);
+                } else {
+                    this.compile(child, ce, false);
+                }
+            });
         }
     }
 
@@ -376,7 +441,10 @@ export class Compiler {
         if (!patternNode) return false;
 
         // Find the IdentifierPattern node that might contain 'mut'
-        const identifierPatternNode = findNodeByTag(patternNode, "IdentifierPattern");
+        const identifierPatternNode = findNodeByTag(
+            patternNode,
+            "IdentifierPattern"
+        );
         if (!identifierPatternNode) return false;
 
         // Check if any of the children of IdentifierPattern is the 'mut' keyword

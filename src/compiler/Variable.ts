@@ -7,7 +7,6 @@ export interface Variable {
 
 export type Backup = Map<string, { borrow: Variable["borrow"], isOwned: Variable["isOwned"], immCount?: number }>;
 
-
 export enum Borrow {
     None = "none",
     Immutable = "immutable",

@@ -39,20 +39,23 @@ export function extractTerminalValue(ast: any): any {
     return "";
 }
 
-export function extractTerminalValues(ast: any): any[] {
+export function extractTerminalValues(ast: any, isCheckingBorrowship: boolean): any[] {
     const values: any[] = [];
     if (ast.tag === "Terminal") {
         values.push(ast.val);
     } else if (ast.children) {
         for (const child of ast.children) {
-            values.push(...extractTerminalValues(child));
+            if (isCheckingBorrowship && child.tag == "BorrowExpression") {
+                break; // ignore borrows
+            }
+            values.push(...extractTerminalValues(child, isCheckingBorrowship));
         }
     }
     return values;
 }
 
 export function extractType(typeNode: any): RustType {
-    const terminalVals = extractTerminalValues(typeNode);
+    const terminalVals = extractTerminalValues(typeNode, false);
     const typeStr = terminalVals.join(" ");
     return parseTypeString(typeStr);
 }
@@ -220,14 +223,22 @@ export function compile_time_environment_extend(vs, e) {
 export function checkVarUsage(ce, varName) {
     const pos = compile_time_environment_position(ce, varName);
     if (!pos) {
-        throw new Error(`Variable ${varName} is not declared.`);
+        throw new Error(`Variable '${varName}' is not declared.`);
     }
     const varInfo: Variable = ce[pos[0]][pos[1]];
     if (varInfo.isOwned === false) {
         throw new Error(
-            `Variable ${varName} has been moved and cannot be used.`
+            `Variable '${varName}' has been moved and cannot be used.`
         );
     }
+}
+
+export function markVarMoved(env, varName: string): void {
+    const [frameIndex, varIndex] = compile_time_environment_position(
+        env,
+        varName
+    );
+    env[frameIndex][varIndex].isOwned = false;
 }
 
 export function checkBorrow(ce, position, symVal, isMutable) {
@@ -287,4 +298,16 @@ export function restoreEnv(env: Variable[][], backup: Backup): void {
             }
         }
     }
+}
+
+export function usesVariable(ast: any, varName: string): boolean {
+    if (!ast) return false;
+    if (ast.tag === "PathExpression_") {
+        const name = extractTerminalValue(ast);
+        if (name === varName) return true;
+    }
+    if (ast.children) {
+        return ast.children.some((child: any) => usesVariable(child, varName));
+    }
+    return false;
 }
