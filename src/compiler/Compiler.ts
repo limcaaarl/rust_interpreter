@@ -232,7 +232,10 @@ export class Compiler {
                     const alt = ast.children[4];
                     this.compile(alt, ce);
                 } else {
+                    // If there's no else branch and the condition is false,
+                    // the expression should evaluate to undefined.
                     instructions[jof_wc].addr = wc;
+                    instructions[wc++] = { tag: "LDC", val: undefined };
                 }
                 instructions[goto_wc].addr = wc;
                 break;
