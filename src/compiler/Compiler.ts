@@ -59,9 +59,7 @@ export class Compiler {
                 const letName = extractTerminalValue(letNameNode);
 
                 // Compile the right hand side of the '='
-                this.compile(ast.children[3], ce);
                 const typeNode = findNodeByTag(ast, 'Type_');
-
                 // If type annotation exists
                 if (typeNode) {
                     this.compile(ast.children[5], ce);
