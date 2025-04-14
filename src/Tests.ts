@@ -4,7 +4,7 @@ import { ILink } from "conductor/src/conduit";
 import { exit } from "process";
 import { BOOL_TYPE, F32_TYPE, I32_TYPE, RustType, STR_TYPE, UNIT_TYPE } from "./typechecker/Types";
 import { TypeChecker } from "./typechecker/TypeChecker";
-import { generateJsonAst, deepEqual } from "./Utils";
+import { generateJsonAst, deepEqual, error } from "./Utils";
 
 // Create a custom link object implementing ILink interface for Node.js environment
 const customLink: ILink = {
@@ -1367,6 +1367,158 @@ async function runTests() {
         I32_TYPE,
         "Type of dereferenced value"
     );
+
+    // =====================================================
+    // Tests for Ownership and Borrowing
+    // =====================================================
+    await runTest(
+        `fn main() {
+            let mut x: str = "hello";
+            let r1 = &x;
+            let r2 = &x;
+            let r3 = &mut x;
+        }`,
+        "Cannot borrow 'x' as mutable because it is also borrowed as immutable.",
+        "Borrowing a borrowed variable (immutable) as mutable should fail",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x: str = "hello";
+            let r3 = &mut x;
+            let r1 = &x;
+        }`,
+        "Error: Cannot borrow 'x' as immutable because it is also borrowed as mutable.",
+        "Borrowing a borrowed variable (mutable) as immutable should fail",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut s: str = "hello";
+            let t = s;
+            s
+        }
+        `,
+        "Variable 's' has been moved and cannot be used.",
+        "Borrowing of moved value should fail",
+        true
+    );
+
+    await runTest(
+        `fn main() {
+            let mut s1: str = "Hello";
+            let s2 = &mut s1;
+            let s3 = s1;
+
+            s3
+        }
+        `,
+        "Hello",
+        "Should be able to move ownership even if the variable is being borrowed."
+    );
+
+    await runTest(
+        `fn main() {
+            let mut s1: str = "Hello";
+            let s2 = &mut s1;
+            let s3 = s1;
+
+            s1
+        }
+        `,
+        "Error: Variable 's1' has been moved and cannot be used.",
+        "Should be able to move ownership even if the variable is being borrowed.",
+        true
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            double(x);
+            x
+        }
+        
+        fn double(x: i32) -> i32 {
+            return x * 2;
+        }
+        `,
+        "Error: Variable 'x' has been moved and cannot be used.",
+        "Passing variable to a function would make it lose ownership",
+        true
+
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            x = double(x);
+            x
+        }
+        
+        fn double(x: i32) -> i32 {
+            return x * 2;
+        }
+        `,
+        10,
+        "Reassigning a value (through function call) will make the variable own the returned value"
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            let mut y = 10;
+            y = x;
+            x
+        }
+        `,
+        "Error: Variable 'x' has been moved and cannot be used.",
+        "Passing ownership through assignment, calling moved variable will fail",
+        true
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            let mut y = 10;
+            y = x;
+            y
+        }
+        `,
+        5,
+        "Passing ownership through assignment, calling new owner will succeed",
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            let mut y = x;
+            x
+        }
+        `,
+        "Error: Variable 'x' has been moved and cannot be used.",
+        "Passing ownership through let statements, calling moved variable will fail",
+        true
+    );
+
+    await runTest(
+        `
+        fn main() {
+            let mut x = 5;
+            let mut y = x;
+            y
+        }
+        `,
+        5,
+        "Passing ownership through let statements, calling new owner will succeed",
+    );
+
 
     // Print summary
     const totalTests = testsPassed + testsFailed;
