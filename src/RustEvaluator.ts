@@ -1,6 +1,6 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
-import { CharStream, CommonTokenStream } from 'antlr4ng';
+import { BaseErrorListener, CharStream, CommonTokenStream } from 'antlr4ng';
 import { RustParser } from "./parser/src/RustParser";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
@@ -26,7 +26,14 @@ export class RustEvaluator extends BasicEvaluator {
             const tokenStream = new CommonTokenStream(lexer);
             const parser = new RustParser(tokenStream);
 
-            // Parse the input
+            class ThrowingErrorListener extends BaseErrorListener {
+                syntaxError(recognizer: any, offendingSymbol: any, line: number, column: number, msg: string): void {
+                    throw new Error(`line ${line}:${column} ${msg}`);
+                }
+            }
+            parser.removeErrorListeners();
+            parser.addErrorListener(new ThrowingErrorListener());
+
             const tree = parser.crate();
             const astJson = this.compiler.astToJson(tree);
             
