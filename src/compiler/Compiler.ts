@@ -15,6 +15,7 @@ import {
     checkVarUsage,
     extractTerminalValues,
     generateDropInstructions,
+    getFinalIdentifier,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -24,13 +25,14 @@ import { TypeChecker } from "../typechecker/TypeChecker";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
-let resultIdx = [];
+// let resultIdx = [];
 
 const global_compile_environment = []
 
 export class Compiler {
     private typeChecker: TypeChecker = new TypeChecker();
-
+    private resultIdx = [];
+    private refTable: Map<string, string> = new Map();
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
             if (node.parent instanceof LiteralExpressionContext) {
@@ -58,8 +60,9 @@ export class Compiler {
         return null;
     }
 
-    private compile(ast: any, ce: any, isCheckOwnership: boolean): void {
+    private compile(ast: any, ce: any, isCheckOwnership: boolean, inMain: boolean): void {
         // console.log(ast.tag);
+        // console.log(ce);
         switch (ast.tag) {
             case "LetStatement": {
                 const letNameNode = findNodeByTag(ast, "Identifier");
@@ -72,12 +75,21 @@ export class Compiler {
                 // Compilation of RHS will lead to RHS being checked if it's owned or not in path expression
                 // so we set true here in the arguments this.compile()
                 // Compile the right hand side of the '='
-                this.compile(ast.children[3], ce, true);
+                this.compile(ast.children[3], ce, true, inMain);
                 const typeNode = findNodeByTag(ast, "Type_");
 
                 // If type annotation exists
                 if (typeNode) {
-                    this.compile(ast.children[5], ce, false);
+                    this.compile(ast.children[5], ce, false, inMain);
+                }
+
+                if (ast.children[3].tag === "BorrowExpression" || ast.children[3].tag === "DereferenceExpression") {
+                    // We assume that the borrowed expression was annotated (or updated) in the refTable.
+                    // Look up the RHS variable name.
+                    const rhsSymbol = extractTerminalValue(ast.children[3].children[ast.children[3].children.length - 1]);
+                    const owner = this.refTable.get(rhsSymbol) || rhsSymbol;
+                    // Record that the new variable (letName) is a reference that ultimately points to owner.
+                    this.refTable.set(letName, owner);
                 }
 
                 instructions[wc++] = {
@@ -102,7 +114,7 @@ export class Compiler {
             case "PathExpression_": {
                 const symVal = extractTerminalValue(ast);
 
-                // Only let, assignments, and function calls will check for ownership
+                // Only let, assignments, implicit returns, and function calls will check for ownership
                 if (isCheckOwnership) {
                     checkVarUsage(ce, symVal);
 
@@ -112,7 +124,10 @@ export class Compiler {
                     );
 
                     // move ownership
-                    ce[position[0]][position[1]].isOwned = false;
+                    // we do not move owner for implicit returns
+                    if (position[0] != this.resultIdx[0] && position[1] != this.resultIdx[1]) 
+                        ce[position[0]][position[1]].isOwned = false;
+
                 }
 
                 instructions[wc++] = {
@@ -123,7 +138,7 @@ export class Compiler {
                 break;
             }
             case "CallExpression": {
-                this.compileChildren(ast, ce);
+                this.compileChildren(ast, ce, inMain);
                 const callParamsNode = findNodeByTag(ast, "CallParams");
 
                 // all variables passed as arguments will have its ownership transferred to the arguments of the function
@@ -146,7 +161,12 @@ export class Compiler {
                 const funcName = extractTerminalValue(
                     findNodeByTag(ast, "Identifier")
                 );
-                if (funcName == "main") mainAddr = wc;
+
+                if (funcName == "main") {
+                    mainAddr = wc;
+                    inMain = true;
+                }
+
                 const funcParams = getFunctionParams(ast);
                 const paramNames = funcParams.map((param) => param.name);
                 instructions[wc++] = {
@@ -167,8 +187,17 @@ export class Compiler {
                 this.compile(
                     findNodeByTag(ast, "BlockExpression"),
                     extended_ce,
-                    false
+                    false,
+                    inMain
                 );
+
+                // drop param names
+                const frameIdx = extended_ce.length - 1;
+                const localFrame = extended_ce[frameIdx];
+                const dropInstructions = generateDropInstructions(localFrame, frameIdx, this.resultIdx, inMain);
+                dropInstructions.forEach(instr => {
+                  instructions[wc++] = instr;
+                });
 
                 instructions[wc++] = { tag: "RESET" };
                 instructions[goto_wc].addr = wc;
@@ -187,21 +216,21 @@ export class Compiler {
 
                 // compile the rest of the expression
                 for (let i = 1; i < ast.children.length; i++) {
-                    this.compile(ast.children[i], ce, false);
+                    this.compile(ast.children[i], ce, false, inMain);
                 }
                 instructions[wc++] = { tag: "RESET" };
                 break;
             }
             case "LazyBooleanExpression": {
-                this.compile(ast.children[0], ce, false); // left
-                this.compile(ast.children[2], ce, false); // right
+                this.compile(ast.children[0], ce, false, inMain); // left
+                this.compile(ast.children[2], ce, false, inMain); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "ComparisonExpression": {
-                this.compile(ast.children[0], ce, false); // left
-                this.compile(ast.children[2], ce, false); // right
+                this.compile(ast.children[0], ce, false, inMain); // left
+                this.compile(ast.children[2], ce, false, inMain); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
@@ -211,13 +240,13 @@ export class Compiler {
                 const loop_start = wc;
 
                 const pred = ast.children[1];
-                this.compile(pred, ce, false);
+                this.compile(pred, ce, false, inMain);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const body = ast.children[2];
-                this.compile(body, ce, false);
+                this.compile(body, ce, false, inMain);
 
                 instructions[wc++] = { tag: "POP" };
                 instructions[wc++] = {
@@ -231,7 +260,7 @@ export class Compiler {
                 const locals = scan(ast);
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
                 const extended_ce = compile_time_environment_extend(locals, ce);
-                this.compileChildren(ast, extended_ce);
+                this.compileChildren(ast, extended_ce, inMain);
                 // call main function
                 if (mainAddr != -1) {
                     instructions[wc++] = {
@@ -253,11 +282,10 @@ export class Compiler {
                 instructions[wc++] = { tag: "ENTER_SCOPE", num: locals.length };
                 const backup = backupEnv(ce);
                 const extended_ce = compile_time_environment_extend(locals, ce);
-                this.compileChildren(ast, extended_ce);
-
+                this.compileChildren(ast, extended_ce, inMain);
                 const frameIdx = extended_ce.length - 1;
                 const localFrame = extended_ce[frameIdx];
-                const dropInstructions = generateDropInstructions(localFrame, frameIdx, resultIdx);
+                const dropInstructions = generateDropInstructions(localFrame, frameIdx, this.resultIdx, inMain);
                 dropInstructions.forEach(instr => {
                   instructions[wc++] = instr;
                 });
@@ -267,18 +295,18 @@ export class Compiler {
                 break;
             }
             case "Statements": {
-                this.compileStatementsChildren(ast, ce);
+                this.compileStatementsChildren(ast, ce, inMain);
                 break;
             }
             case "IfExpression": {
                 const pred = ast.children[1];
-                this.compile(pred, ce, false);
+                this.compile(pred, ce, false, inMain);
 
                 const jof_wc = wc++;
                 instructions[jof_wc] = { tag: "JOF", addr: -1 };
 
                 const cons = ast.children[2];
-                this.compile(cons, ce, false);
+                this.compile(cons, ce, false, inMain);
 
                 const goto_wc = wc++;
                 instructions[goto_wc] = { tag: "GOTO", addr: -1 };
@@ -288,7 +316,7 @@ export class Compiler {
                     const alternative_address = wc;
                     instructions[jof_wc].addr = alternative_address;
                     const alt = ast.children[4];
-                    this.compile(alt, ce, false);
+                    this.compile(alt, ce, false, inMain);
                 } else {
                     instructions[jof_wc].addr = wc;
                 }
@@ -296,20 +324,20 @@ export class Compiler {
                 break;
             }
             case "ArithmeticOrLogicalExpression": {
-                this.compile(ast.children[0], ce, false); // left
-                this.compile(ast.children[2], ce, false); // right
+                this.compile(ast.children[0], ce, false, inMain); // left
+                this.compile(ast.children[2], ce, false, inMain); // right
                 const binop = extractTerminalValue(ast.children[1]);
                 instructions[wc++] = { tag: "BINOP", sym: binop };
                 break;
             }
             case "NegationExpression": {
-                this.compile(ast.children[1], ce, false);
+                this.compile(ast.children[1], ce, false, inMain);
                 const unop = extractTerminalValue(ast.children[0]);
                 instructions[wc++] = { tag: "UNOP", sym: unop };
                 break;
             }
             case "ExpressionStatement": {
-                this.compile(ast.children[0], ce, false);
+                this.compile(ast.children[0], ce, false, inMain);
                 if (
                     ast.children[1] &&
                     extractTerminalValue(ast.children[1]) === ";"
@@ -325,7 +353,7 @@ export class Compiler {
                 if (leftNode.tag === "PathExpression_") {
                     // Direct variable assignment (x = value)
                     // Compile the right hand side expression first
-                    this.compile(ast.children[2], ce, true);
+                    this.compile(ast.children[2], ce, true, inMain);
 
                     const varName = extractTerminalValue(leftNode);
                     const position = compile_time_environment_position(
@@ -333,7 +361,15 @@ export class Compiler {
                         varName
                     );
 
+                    // Emit a DROP instruction for the current content of the variable,
+                    // if it currently owns its value.
+                    if (ce[position[0]][position[1]].isOwned) {
+                        instructions[wc++] = { tag: "DROP", pos: position };
+                    }
+
+                    // After dropping old value, mark var as new owner
                     ce[position[0]][position[1]].isOwned = true;
+                    
                     instructions[wc++] = {
                         tag: "ASSIGN",
                         pos: position,
@@ -342,10 +378,10 @@ export class Compiler {
                     // Assignment through dereferenced reference (*x = value)
 
                     // First compile the reference expression (what *x points to)
-                    this.compile(leftNode.children[1], ce, true);
+                    this.compile(leftNode.children[1], ce, true, inMain);
 
                     // Then compile the right-hand side expression (the value to assign)
-                    this.compile(ast.children[2], ce, true);
+                    this.compile(ast.children[2], ce, true, inMain);
 
                     // Then update the value at the reference
                     // Now stack has [ref_address, value]
@@ -388,7 +424,7 @@ export class Compiler {
             case "DereferenceExpression": {
                 // Get the reference expression
                 const referenceExpr = ast.children[1];
-                this.compile(referenceExpr, ce, false);
+                this.compile(referenceExpr, ce, false, inMain);
 
                 // Add DEREF instruction
                 instructions[wc++] = { tag: "DEREF" };
@@ -396,7 +432,7 @@ export class Compiler {
             }
             default: {
                 // for nodes not specifically handled, recursively compile their children.
-                this.compileChildren(ast, ce);
+                this.compileChildren(ast, ce, inMain);
                 break;
             }
         }
@@ -420,28 +456,33 @@ export class Compiler {
 
         wc = 0;
         instructions = [];
-        this.compile(ast, global_compile_environment, false);
+        this.compile(ast, global_compile_environment, false, false);
         instructions[wc++] = { tag: "DONE" };
         return instructions;
     }
 
-    private compileChildren(ast: any, ce: any): void {
+    private compileChildren(ast: any, ce: any, inMain: boolean): void {
         if (ast.children && ast.children.length > 0) {
             ast.children.forEach((child: any) =>
-                this.compile(child, ce, false)
+                this.compile(child, ce, false, inMain)
             );
         }
     }
     
-    private compileStatementsChildren(ast: any, ce: any): void {
+    private compileStatementsChildren(ast: any, ce: any, inMain: boolean): void {
         if (ast.children && ast.children.length > 0) {
             ast.children.forEach((child: any) => {
                 if (child.tag == "PathExpression_") {
                     const symVal = extractTerminalValue(child);
-                    resultIdx = compile_time_environment_position(ce, symVal);
-                    this.compile(child, ce, true);
+                    this.resultIdx = compile_time_environment_position(ce, symVal);
+                    this.compile(child, ce, true, inMain);
+                } else if (child.tag == "DereferenceExpression") {
+                    const symVal = getFinalIdentifier(child);
+                    const owner = this.refTable.get(symVal) || symVal;
+                    this.resultIdx = compile_time_environment_position(ce, owner);
+                    this.compile(child, ce, true, inMain);
                 } else {
-                    this.compile(child, ce, false);
+                    this.compile(child, ce, false, inMain);
                 }
             });
         }

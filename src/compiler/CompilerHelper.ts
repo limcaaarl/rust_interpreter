@@ -11,7 +11,7 @@ import {
     UNIT_TYPE,
 } from "../typechecker/Types";
 import { error } from "../Utils";
-import { Backup, Borrow, Variable } from "./Variable";
+import { Backup, Borrow, VariableInfo } from "./Variable";
 
 // Recursively search for the first node with a given tag.
 export function findNodeByTag(ast: any, tag: string): any {
@@ -188,7 +188,7 @@ function paramsAreTyped(functionParamNode: any): boolean {
     return true;
 }
 
-export function compile_time_environment_position(env, x) {
+export function compile_time_environment_position(env, x): [number, number] {
     let frame_index = env.length - 1; // start at the last frame
     while (frame_index >= 0) {
         const idx = value_index(env[frame_index], x);
@@ -209,7 +209,7 @@ export function value_index(frame, x) {
 }
 
 export function compile_time_environment_extend(vs, e) {
-    const newFrame: Variable[] = vs.map((v) => ({
+    const newFrame: VariableInfo[] = vs.map((v) => ({
         name: v,
         isOwned: true,
         borrow: Borrow.None,
@@ -225,7 +225,7 @@ export function checkVarUsage(ce, varName) {
     if (!pos) {
         throw new Error(`Variable '${varName}' is not declared.`);
     }
-    const varInfo: Variable = ce[pos[0]][pos[1]];
+    const varInfo: VariableInfo = ce[pos[0]][pos[1]];
     if (varInfo.isOwned === false) {
         throw new Error(
             `Variable '${varName}' has been moved and cannot be used.`
@@ -243,7 +243,7 @@ export function markVarMoved(env, varName: string): void {
 
 export function checkBorrow(ce, position, symVal, isMutable) {
     // the variable being borrowed
-    const variableInfo: Variable = ce[position[0]][position[1]];
+    const variableInfo: VariableInfo = ce[position[0]][position[1]];
 
     if (isMutable) {
         // mutable borrow
@@ -274,7 +274,7 @@ export function checkBorrow(ce, position, symVal, isMutable) {
     }
 }
 
-export function backupEnv(env: Variable[][]): Backup {
+export function backupEnv(env: VariableInfo[][]): Backup {
     const backup: Backup = new Map();
     for (let i = 0; i < env.length; i++) {
         for (const varInfo of env[i]) {
@@ -288,13 +288,14 @@ export function backupEnv(env: Variable[][]): Backup {
     return backup;
 }
 
-export function restoreEnv(env: Variable[][], backup: Backup): void {
+export function restoreEnv(env: VariableInfo[][], backup: Backup): void {
     for (let i = 0; i < env.length; i++) {
         for (const varInfo of env[i]) {
             const saved = backup.get(varInfo.name);
             if (saved !== undefined) {
                 varInfo.borrow = saved.borrow;
                 varInfo.immCount = saved.immCount;
+                // varInfo.isOwned = saved.isOwned;
             }
         }
     }
@@ -312,21 +313,35 @@ export function usesVariable(ast: any, varName: string): boolean {
     return false;
 }
 
-export function generateDropInstructions(frame: any[],frameIdx, resultIdx): Instruction[] {
+export function generateDropInstructions(frame: any[], frameIdx, resultIdx, inMain): Instruction[] {
     const dropInstrs: Instruction[] = [];
-    // This contains the frame for the main function
-    // We do not drop this as it is required for evaluating the whole main function
-    // Block containing the result expression should also not be dropped
-    if(frameIdx == 2) return dropInstrs;
-
     for (let i = 0; i < frame.length; i++) {
-        // TODO: Not a very good implementation as we can have multiple blocks
-        // We only really need to not drop the value that returns in main
-        // skips statements that return value
-        if (frameIdx == resultIdx[0] && i == resultIdx[1]) continue;
-        // console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
-        dropInstrs.push({ tag: "DROP", pos: [frameIdx, i] });
+        if (inMain && resultIdx[0] == frameIdx && resultIdx[1] == i) continue;
+
+        // drop only those variables who still own some value
+        if (frame[i].isOwned) {
+            // if (frameIdx == 2 && i == 0) continue;
+            // console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
+            dropInstrs.push({ tag: "DROP", pos: [frameIdx, i] });
+        }
     }
     return dropInstrs;
+}
+
+export function getFinalIdentifier(node: any): string | undefined {
+    // If this node is an Identifier, extract its value.
+    if (node.tag === "Identifier") {
+        return extractTerminalValue(node);
+    }
+    // Otherwise, if there are children, search through them.
+    if (node.children && node.children.length > 0) {
+        for (let child of node.children) {
+            const id = getFinalIdentifier(child);
+            if (id !== undefined) {
+                return id;
+            }
+        }
+    }
+    return undefined;
 }
   
