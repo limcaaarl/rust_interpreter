@@ -10,7 +10,12 @@ export function apply_binop(op: string, v2: any, v1: any, heap: Heap): any {
         "+": (x, y) => x + y,
         "*": (x, y) => x * y,
         "-": (x, y) => x - y,
-        "/": (x, y) => x / y,
+        "/": (x, y) => {
+            if (y === 0) {
+                error("Division by zero");
+            }
+            return x / y;
+        },
         "%": (x, y) => x % y,
         "<": (x, y) => x < y,
         "<=": (x, y) => x <= y,

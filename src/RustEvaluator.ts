@@ -1,22 +1,19 @@
 import { BasicEvaluator } from "conductor/src/conductor/runner";
 import { IRunnerPlugin } from "conductor/src/conductor/runner/types";
-import { CharStream, CommonTokenStream } from 'antlr4ng';
+import { BaseErrorListener, CharStream, CommonTokenStream } from 'antlr4ng';
 import { RustParser } from "./parser/src/RustParser";
 import { RustLexer } from "./parser/src/RustLexer";
 import { Compiler } from "./compiler/Compiler";
-import { RustEvaluatorVisitor } from "./RustEvaluatorVisitor";
 import { displayInstructions } from "./compiler/CompilerHelper";
 import { VirtualMachine } from "./vm/VirtualMachine";
 
 export class RustEvaluator extends BasicEvaluator {
     private executionCount: number;
-    private visitor: RustEvaluatorVisitor;
     private compiler: Compiler;
 
     constructor(conductor: IRunnerPlugin) {
         super(conductor);
         this.executionCount = 0;
-        this.visitor = new RustEvaluatorVisitor();
         this.compiler = new Compiler();
     }
 
@@ -29,7 +26,14 @@ export class RustEvaluator extends BasicEvaluator {
             const tokenStream = new CommonTokenStream(lexer);
             const parser = new RustParser(tokenStream);
 
-            // Parse the input
+            class ThrowingErrorListener extends BaseErrorListener {
+                syntaxError(recognizer: any, offendingSymbol: any, line: number, column: number, msg: string): void {
+                    throw new Error(`line ${line}:${column} ${msg}`);
+                }
+            }
+            parser.removeErrorListeners();
+            parser.addErrorListener(new ThrowingErrorListener());
+
             const tree = parser.crate();
             const astJson = this.compiler.astToJson(tree);
             
@@ -37,16 +41,12 @@ export class RustEvaluator extends BasicEvaluator {
             
             // console.log(JSON.stringify(astJson, null, 2));
             
-            // Uncomment the following line to evaluate using RustEvaluatorVisitor
-            // const result = this.visitor.visit(tree);
-            
-            // Uncomment the following lines to evaluate using VirtualMachine
             const instructions = this.compiler.compileProgram(astJson);
             const vm = new VirtualMachine(instructions);
             const result = vm.run();
             
             // Send the result to the REPL
-            this.conductor.sendOutput(`Result: ${result}`);
+            this.conductor.sendOutput(`${result}`);
             // console.log(result);
 
             return result;

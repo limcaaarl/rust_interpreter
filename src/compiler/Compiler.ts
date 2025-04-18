@@ -72,12 +72,13 @@ export class Compiler {
                 // Compilation of RHS will lead to RHS being checked if it's owned or not in path expression
                 // so we set true here in the arguments this.compile()
                 // Compile the right hand side of the '='
-                this.compile(ast.children[3], ce, true, preserveReturnValue);
                 const typeNode = findNodeByTag(ast, "Type_");
 
                 // If type annotation exists
                 if (typeNode) {
-                    this.compile(ast.children[5], ce, false, preserveReturnValue);
+                    this.compile(ast.children[5], ce, true, preserveReturnValue);
+                } else {
+                    this.compile(ast.children[3], ce, true, preserveReturnValue);
                 }
 
                 instructions[wc++] = {
@@ -141,7 +142,7 @@ export class Compiler {
 
                 instructions[wc++] = {
                     tag: "CALL",
-                    arity: Math.floor(callParamsNode.children.length / 2) + 1,
+                    arity: callParamsNode ? Math.floor(callParamsNode.children.length / 2) + 1 : 0,
                 };
                 break;
             }
@@ -309,7 +310,10 @@ export class Compiler {
                     const alt = ast.children[4];
                     this.compile(alt, ce, false, preserveReturnValue);
                 } else {
+                    // If there's no else branch and the condition is false,
+                    // the expression should evaluate to undefined.
                     instructions[jof_wc].addr = wc;
+                    instructions[wc++] = { tag: "LDC", val: undefined };
                 }
                 instructions[goto_wc].addr = wc;
                 break;
@@ -431,11 +435,6 @@ export class Compiler {
 
     private typeCheck(ast: any): boolean {
         const valid = this.typeChecker.check(ast);
-        // if (!valid) {
-        //     const errors = this.typeChecker.getErrors();
-        //     console.error('Type checking errors:');
-        //     errors.forEach(err => console.error(`- ${err}`));
-        // }
         return valid;
     }
 

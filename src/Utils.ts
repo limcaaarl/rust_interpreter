@@ -96,29 +96,6 @@ export function is_unassigned(v: any): boolean {
         v.tag === 'unassigned'
 }
 
-// v2 is popped before v1
-export function apply_binop(op: string, v2: any, v1: any): any {
-    const binop_microcode = {
-        '|': (x, y) => x || y,
-        '&': (x, y) => x && y,
-        '||': (x, y) => x || y,
-        '&&': (x, y) => x && y,
-        '+': (x, y) => x + y,
-        '*': (x, y) => x * y,
-        '-': (x, y) => x - y,
-        '/': (x, y) => x / y,
-        '%': (x, y) => x % y,
-        '<': (x, y) => x < y,
-        '<=': (x, y) => x <= y,
-        '>=': (x, y) => x >= y,
-        '>': (x, y) => x > y,
-        '==': (x, y) => x === y,
-        '!=': (x, y) => x !== y
-    };
-
-    return binop_microcode[op](v1, v2);
-}
-
 export function is_boolean(x: any): boolean {
     return x === true || x === false;
 }
@@ -146,33 +123,6 @@ export function generateJsonAst(code: string) {
     const astJson = compiler.astToJson(tree);
 
     return astJson
-}
-
-/** Given a crate node, return the main function node */
-export function getMainFunction(crateNode: any) {
-    function traverse(node: any): any {
-        if (node.tag === "Function_") {
-            // Check if the function name is "main"
-            const identifierNode = node.children?.find(child => child.tag === "Identifier");
-            const mainIdentifier = identifierNode?.children?.find(child => child.val === "main");
-            if (mainIdentifier) {
-                return node; // Return the "main" function node
-            }
-        }
-
-        // Recursively traverse children
-        if (node.children) {
-            for (const child of node.children) {
-                const result = traverse(child);
-                if (result) {
-                    return result;
-                }
-            }
-        }
-        return null; // Return null if no "main" function is found
-    }
-
-    return traverse(crateNode);
 }
 
 // To check reference types as objects are compared by reference, not by value
