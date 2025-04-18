@@ -316,7 +316,11 @@ export function usesVariable(ast: any, varName: string): boolean {
 export function generateDropInstructions(frame: any[], frameIdx, resultIdx, inMain): Instruction[] {
     const dropInstrs: Instruction[] = [];
     for (let i = 0; i < frame.length; i++) {
+        // skip the value we want to return at the end of the evaluation
         if (inMain && resultIdx[0] == frameIdx && resultIdx[1] == i) continue;
+
+        // skip those variables with borrowers
+        if (frame[i] != Borrow.None) continue;
 
         // drop only those variables who still own some value
         if (frame[i].isOwned) {
