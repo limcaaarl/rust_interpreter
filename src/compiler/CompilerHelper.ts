@@ -327,21 +327,3 @@ export function generateDropInstructions(frame: any[], frameIdx, resultIdx, inMa
     }
     return dropInstrs;
 }
-
-export function getFinalIdentifier(node: any): string | undefined {
-    // If this node is an Identifier, extract its value.
-    if (node.tag === "Identifier") {
-        return extractTerminalValue(node);
-    }
-    // Otherwise, if there are children, search through them.
-    if (node.children && node.children.length > 0) {
-        for (let child of node.children) {
-            const id = getFinalIdentifier(child);
-            if (id !== undefined) {
-                return id;
-            }
-        }
-    }
-    return undefined;
-}
-  

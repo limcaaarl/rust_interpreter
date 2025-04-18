@@ -15,7 +15,6 @@ import {
     checkVarUsage,
     extractTerminalValues,
     generateDropInstructions,
-    getFinalIdentifier,
 } from "./CompilerHelper";
 import { Instruction } from "./Instruction";
 import { scan } from "../Utils";
@@ -25,14 +24,12 @@ import { TypeChecker } from "../typechecker/TypeChecker";
 let instructions: Instruction[] = [];
 let wc = 0;
 let mainAddr = -1;
-// let resultIdx = [];
 
 const global_compile_environment = []
 
 export class Compiler {
     private typeChecker: TypeChecker = new TypeChecker();
     private resultIdx = [];
-    private refTable: Map<string, string> = new Map();
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
             if (node.parent instanceof LiteralExpressionContext) {
@@ -81,15 +78,6 @@ export class Compiler {
                 // If type annotation exists
                 if (typeNode) {
                     this.compile(ast.children[5], ce, false, inMain);
-                }
-
-                if (ast.children[3].tag === "BorrowExpression" || ast.children[3].tag === "DereferenceExpression") {
-                    // We assume that the borrowed expression was annotated (or updated) in the refTable.
-                    // Look up the RHS variable name.
-                    const rhsSymbol = extractTerminalValue(ast.children[3].children[ast.children[3].children.length - 1]);
-                    const owner = this.refTable.get(rhsSymbol) || rhsSymbol;
-                    // Record that the new variable (letName) is a reference that ultimately points to owner.
-                    this.refTable.set(letName, owner);
                 }
 
                 instructions[wc++] = {
@@ -475,11 +463,6 @@ export class Compiler {
                 if (child.tag == "PathExpression_") {
                     const symVal = extractTerminalValue(child);
                     this.resultIdx = compile_time_environment_position(ce, symVal);
-                    this.compile(child, ce, true, inMain);
-                } else if (child.tag == "DereferenceExpression") {
-                    const symVal = getFinalIdentifier(child);
-                    const owner = this.refTable.get(symVal) || symVal;
-                    this.resultIdx = compile_time_environment_position(ce, owner);
                     this.compile(child, ce, true, inMain);
                 } else {
                     this.compile(child, ce, false, inMain);
