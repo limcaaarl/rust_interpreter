@@ -1519,6 +1519,25 @@ async function runTests() {
         "Passing ownership through let statements, calling new owner will succeed",
     );
 
+    await runTest(
+        `
+        fn main() {
+            let x:i32 = 10;
+            let y = test(x);
+            y
+        }
+
+        fn test(ab: i32) -> i32 {
+            let abc = 5;
+            let z = 10;
+            let b = 20;
+            ab
+        }
+        `,
+        10,
+        "Assignment of function calls to a variable will make that variable own the return value.",
+    );
+
 
     // Print summary
     const totalTests = testsPassed + testsFailed;
