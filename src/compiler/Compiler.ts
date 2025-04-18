@@ -131,7 +131,7 @@ export class Compiler {
                 const callParamsNode = findNodeByTag(ast, "CallParams");
 
                 // all variables passed as arguments will have its ownership transferred to the arguments of the function
-                let paramNames = extractTerminalValues(callParamsNode, true);
+                let paramNames = callParamsNode ? extractTerminalValues(callParamsNode, true) : [];
 
                 paramNames.forEach((name) => {
                     if (name !== "," && typeof name === "string") {
@@ -139,7 +139,6 @@ export class Compiler {
                         if (pos) ce[pos[0]][pos[1]].ownsVal = false;
                     }
                 });
-
                 instructions[wc++] = {
                     tag: "CALL",
                     arity: callParamsNode ? Math.floor(callParamsNode.children.length / 2) + 1 : 0,

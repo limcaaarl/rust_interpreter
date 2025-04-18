@@ -1644,7 +1644,7 @@ async function runTests() {
             let z = &x;  // Should fail - already mutably borrowed
             *z
         }`,
-        "Cannot borrow 'x' as immutable because it is already borrowed as mutable",
+        "Error: Cannot borrow 'x' as immutable because it is also borrowed as mutable.",
         "Immutable borrow when already borrowed mutably",
         true
     );
@@ -1684,9 +1684,32 @@ async function runTests() {
         "Type of dereferenced value"
     );
 
+    runTypeCheckerTest(
+        `fn main() {
+            let x = 5;
+            let y = &x;
+            let z = &y;
+            z
+        }`,
+        { kind: 'reference', targetType: { kind: 'reference', targetType: I32_TYPE, mutable: false }, mutable: false },
+        "Type of nested reference"
+    );
+
+    runTypeCheckerTest(
+        `fn main() {
+            let x = true;
+            let y = &x;
+            y
+        }`,
+        { kind: 'reference', targetType: BOOL_TYPE, mutable: false },
+        "Reference to boolean type"
+    );
+
+    
     // =====================================================
     // Tests for Ownership and Borrowing
     // =====================================================
+    console.log("\n=== Ownership and Borrowing ===");
     await runTest(
         `fn main() {
             let mut x: str = "hello";
@@ -1852,28 +1875,6 @@ async function runTests() {
         `,
         10,
         "Assignment of function calls to a variable will make that variable own the return value.",
-    );
-
-
-    runTypeCheckerTest(
-        `fn main() {
-            let x = 5;
-            let y = &x;
-            let z = &y;
-            z
-        }`,
-        { kind: 'reference', targetType: { kind: 'reference', targetType: I32_TYPE, mutable: false }, mutable: false },
-        "Type of nested reference"
-    );
-
-    runTypeCheckerTest(
-        `fn main() {
-            let x = true;
-            let y = &x;
-            y
-        }`,
-        { kind: 'reference', targetType: BOOL_TYPE, mutable: false },
-        "Reference to boolean type"
     );
 
     // Print summary
