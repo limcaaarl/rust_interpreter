@@ -29,7 +29,7 @@ const global_compile_environment = []
 
 export class Compiler {
     private typeChecker: TypeChecker = new TypeChecker();
-    private resultIdx = [];
+    private resultIdx: [number, number][] = [];
     public astToJson(node: ParseTree): any {
         if (node instanceof TerminalNode) {
             if (node.parent instanceof LiteralExpressionContext) {
@@ -113,8 +113,11 @@ export class Compiler {
 
                     // move ownership
                     // we do not move owner for implicit returns
-                    if (position[0] != this.resultIdx[0] && position[1] != this.resultIdx[1]) 
+                    if (!this.resultIdx.some(([resFrame, resSlot]) => resFrame !== position[0] && resSlot !== position[1])) {
                         ce[position[0]][position[1]].isOwned = false;
+                    }
+                    // if (position[0] != this.resultIdx[0] && position[1] != this.resultIdx[1]) 
+                    //     ce[position[0]][position[1]].isOwned = false;
 
                 }
 
@@ -462,7 +465,7 @@ export class Compiler {
             ast.children.forEach((child: any) => {
                 if (child.tag == "PathExpression_") {
                     const symVal = extractTerminalValue(child);
-                    this.resultIdx = compile_time_environment_position(ce, symVal);
+                    this.resultIdx.push(compile_time_environment_position(ce, symVal));
                     this.compile(child, ce, true, inMain);
                 } else {
                     this.compile(child, ce, false, inMain);

@@ -315,17 +315,17 @@ export function usesVariable(ast: any, varName: string): boolean {
 
 export function generateDropInstructions(frame: any[], frameIdx, resultIdx, inMain): Instruction[] {
     const dropInstrs: Instruction[] = [];
+    console.log("resultIdx = " + resultIdx)
     for (let i = 0; i < frame.length; i++) {
-        // skip the value we want to return at the end of the evaluation
-        if (inMain && resultIdx[0] == frameIdx && resultIdx[1] == i) continue;
-
+        // skip the return value from main
+        let isReturnedInMain = inMain && resultIdx.some(([resFrame, resSlot]) => resFrame === frameIdx && resSlot === i);
         // skip those variables with borrowers
-        if (frame[i] != Borrow.None) continue;
+        let isBorrowed = frame[i].borrow != Borrow.None;
 
-        // drop only those variables who still own some value
-        if (frame[i].isOwned) {
+        // skip those values that are still owned
+        if (frame[i].isOwned && !isReturnedInMain && !isBorrowed) {
             // if (frameIdx == 2 && i == 0) continue;
-            // console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
+            console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
             dropInstrs.push({ tag: "DROP", pos: [frameIdx, i] });
         }
     }
