@@ -211,7 +211,7 @@ export function value_index(frame, x) {
 export function compile_time_environment_extend(vs, e) {
     const newFrame: VariableInfo[] = vs.map((v) => ({
         name: v,
-        isOwned: true,
+        ownsVal: true,
         borrow: Borrow.None,
     }));
     const newEnv = [...e];
@@ -226,7 +226,7 @@ export function checkVarUsage(ce, varName) {
         throw new Error(`Variable '${varName}' is not declared.`);
     }
     const varInfo: VariableInfo = ce[pos[0]][pos[1]];
-    if (varInfo.isOwned === false) {
+    if (varInfo.ownsVal === false) {
         throw new Error(
             `Variable '${varName}' has been moved and cannot be used.`
         );
@@ -238,7 +238,7 @@ export function markVarMoved(env, varName: string): void {
         env,
         varName
     );
-    env[frameIndex][varIndex].isOwned = false;
+    env[frameIndex][varIndex].ownsVal = false;
 }
 
 export function checkBorrow(ce, position, symVal, isMutable) {
@@ -280,7 +280,7 @@ export function backupEnv(env: VariableInfo[][]): Backup {
         for (const varInfo of env[i]) {
             backup.set(varInfo.name, {
                 borrow: varInfo.borrow,
-                isOwned: varInfo.isOwned,
+                ownsVal: varInfo.ownsVal,
                 immCount: varInfo.immCount || 0,
             });
         }
@@ -295,7 +295,6 @@ export function restoreEnv(env: VariableInfo[][], backup: Backup): void {
             if (saved !== undefined) {
                 varInfo.borrow = saved.borrow;
                 varInfo.immCount = saved.immCount;
-                // varInfo.isOwned = saved.isOwned;
             }
         }
     }
@@ -313,19 +312,17 @@ export function usesVariable(ast: any, varName: string): boolean {
     return false;
 }
 
-export function generateDropInstructions(frame: any[], frameIdx, resultIdx, inMain): Instruction[] {
+export function generateDropInstructions(frame: any[], frameIdx, resultIdx, preserveReturnValue): Instruction[] {
     const dropInstrs: Instruction[] = [];
-    console.log("resultIdx = " + resultIdx)
     for (let i = 0; i < frame.length; i++) {
-        // skip the return value from main
-        let isReturnedInMain = inMain && resultIdx.some(([resFrame, resSlot]) => resFrame === frameIdx && resSlot === i);
+        // skip the return values that is marked as preserveReturnValue, which indicates that it's being assigned to some var x = return();
+        let skipReturn = preserveReturnValue && resultIdx.some(([resFrame, resSlot]) => resFrame === frameIdx && resSlot === i);
         // skip those variables with borrowers
         let isBorrowed = frame[i].borrow != Borrow.None;
 
         // skip those values that are still owned
-        if (frame[i].isOwned && !isReturnedInMain && !isBorrowed) {
-            // if (frameIdx == 2 && i == 0) continue;
-            console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
+        if (frame[i].ownsVal && !skipReturn && !isBorrowed) {
+            // console.log("Frame being dropped: " + JSON.stringify(frame[i]) + " pos: " + frameIdx, i)
             dropInstrs.push({ tag: "DROP", pos: [frameIdx, i] });
         }
     }
