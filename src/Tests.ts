@@ -596,6 +596,32 @@ async function runTests() {
         true
     );
 
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            while x > 2 {
+                x = x - 1;
+            }
+            x
+        }`,
+        2,
+        "While loop",
+    );
+
+    await runTest(
+        `fn main() {
+            let mut x = 5;
+            let y: str = "Hello";
+            while y {
+                x -= 1;
+            }
+            x
+        }`,
+        "Type checking failed: Loop condition must be boolean, got str",
+        "While loop pred must be boolean",
+        true
+    );
+
     console.log("\n=== FUNCTIONS ===");
     // =====================================================
     // Tests for functions
