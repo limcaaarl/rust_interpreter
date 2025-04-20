@@ -26,19 +26,15 @@ export class RustEvaluator extends BasicEvaluator {
             const tokenStream = new CommonTokenStream(lexer);
             const parser = new RustParser(tokenStream);
 
-            class ThrowingErrorListener extends BaseErrorListener {
-                syntaxError(recognizer: any, offendingSymbol: any, line: number, column: number, msg: string): void {
-                    throw new Error(`line ${line}:${column} ${msg}`);
-                }
-            }
-            parser.removeErrorListeners();
-            parser.addErrorListener(new ThrowingErrorListener());
+            addThrowingErrorListener(parser);
 
             const tree = parser.crate();
             const astJson = this.compiler.astToJson(tree);
             
+            // Print default parser tree for debugging
             // console.log(tree.toStringTree(parser));
-            
+
+            // Print AST JSON tree for debugging
             // console.log(JSON.stringify(astJson, null, 2));
             
             const instructions = this.compiler.compileProgram(astJson);
@@ -47,7 +43,6 @@ export class RustEvaluator extends BasicEvaluator {
             
             // Send the result to the REPL
             this.conductor.sendOutput(`${result}`);
-            // console.log(result);
 
             return result;
         } catch (error) {
@@ -60,4 +55,19 @@ export class RustEvaluator extends BasicEvaluator {
             throw error
         }
     }
+}
+
+/**
+ * Adds a custom error listener to the parser that throws an error on syntax errors.
+ * This is so we can display parser errors in the REPL.
+ * @param parser The parser to add the error listener to.
+ */
+function addThrowingErrorListener(parser: RustParser): void {
+    class ThrowingErrorListener extends BaseErrorListener {
+        syntaxError(recognizer: any, offendingSymbol: any, line: number, column: number, msg: string): void {
+            throw new Error(`line ${line}:${column} ${msg}`);
+        }
+    }
+    parser.removeErrorListeners();
+    parser.addErrorListener(new ThrowingErrorListener());
 }
