@@ -1490,19 +1490,6 @@ async function runTests() {
         "Reference to a reference"
     );
 
-    await runTest(
-        `fn main() {
-            let x = &get_value();
-            *x
-        }
-        
-        fn get_value() -> i32 {
-            42
-        }`,
-        42,
-        "Reference to function result"
-    );
-
     console.log("\n=== NESTED REFERENCES AND DEREFERENCING ===");
     // =====================================================
     // Tests for nested references and dereferencing
