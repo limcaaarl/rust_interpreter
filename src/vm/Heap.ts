@@ -54,9 +54,7 @@ export class Heap {
             error("limitation: nodes cannot be larger than 10 words");
         }
         if (this.free === -1) {
-            if (this.free === -1) {
-                error("heap memory exhausted");
-            }
+            error("heap memory exhausted");
         }
 
         const address = this.free;
